@@ -27,16 +27,18 @@ async function refresh(root: HTMLElement): Promise<void> {
     const buttons = await toolService.listButtons()
     renderApp(root, buttons, view, runState, {
       onRun: async (button: Button) => {
+        const alreadyRunning = [...runState.values()].some((state) => state.isRunning)
+        if (alreadyRunning) return
         clearRunErrors()
         runState.set(button.id, { isRunning: true, error: null })
-        await refresh(root)
+        if (view.mode === 'list') await refresh(root)
 
         try {
           const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
           if (!tab?.id || !tab.url) {
             console.warn('[Claude Tools] no active claude.ai tab to run against')
             runState.set(button.id, { isRunning: false, error: 'Open claude.ai to use this tool.' })
-            await refresh(root)
+            if (view.mode === 'list') await refresh(root)
             return
           }
 
@@ -50,7 +52,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           } catch (error) {
             console.error('[Claude Tools] failed to reach content script', error)
             runState.set(button.id, { isRunning: false, error: 'Reload the Claude tab and try again.' })
-            await refresh(root)
+            if (view.mode === 'list') await refresh(root)
             return
           }
 
@@ -60,14 +62,14 @@ async function refresh(root: HTMLElement): Promise<void> {
             console.error('[Claude Tools] run failed', response.error, response.message)
             runState.set(button.id, { isRunning: false, error: response.message })
           }
-          await refresh(root)
+          if (view.mode === 'list') await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] unexpected error running button', error)
           runState.set(button.id, {
             isRunning: false,
             error: 'Something went wrong running that tool. Check the console for details.',
           })
-          await refresh(root)
+          if (view.mode === 'list') await refresh(root)
         }
       },
       onAddClick: () => {

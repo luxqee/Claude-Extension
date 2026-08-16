@@ -75,7 +75,15 @@ export async function insertAndSend(prompt: string): Promise<InsertAndSendRespon
   }
 
   input.focus()
-  document.execCommand('insertText', false, prompt)
+  const inserted = document.execCommand('insertText', false, prompt)
+  if (!inserted || isInputEmpty(input)) {
+    console.error('[Claude Tools] prompt insertion did not take effect')
+    return {
+      ok: false,
+      error: 'send_failed',
+      message: "Couldn't type the prompt into Claude's chat box. Try reloading the page.",
+    }
+  }
 
   const sendButton = await pollFor(findUsableSendButton, SEND_POLL_INTERVAL_MS, SEND_POLL_TIMEOUT_MS)
   if (sendButton) {
