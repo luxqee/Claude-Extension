@@ -39,3 +39,91 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.add-button {
+  border: none;
+  border-radius: 6px;
+  background: #d97757;
+  color: white;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.button-row-controls {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.icon-button {
+  border: 1px solid #d8d8d8;
+  border-radius: 6px;
+  background: white;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.icon-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.icon-button-danger {
+  color: #b3261e;
+  border-color: #eac6c2;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.edit-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.edit-form input,
+.edit-form textarea {
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid #d8d8d8;
+  border-radius: 6px;
+  resize: vertical;
+}
+
+.edit-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.edit-form-actions button {
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.edit-form-actions button[type='submit'] {
+  border: none;
+  background: #d97757;
+  color: white;
+}
+
+.edit-form-actions button[type='button'] {
+  border: 1px solid #d8d8d8;
+  background: white;
+}
