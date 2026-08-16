@@ -217,7 +217,7 @@ export function isInputEmpty(input: Pick<HTMLElement, 'textContent'>): boolean {
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm test -- claude-adapter`
-Expected: PASS, all 11 tests green.
+Expected: PASS, all 12 tests green.
 
 - [ ] **Step 5: Commit**
 
@@ -323,7 +323,7 @@ export async function insertAndSend(prompt: string): Promise<InsertAndSendRespon
 - [ ] **Step 2: Verify the project builds and existing tests still pass**
 
 Run: `pnpm test`
-Expected: PASS, still 26 tests (15 from Stage 1B/1C + 11 from Task 2 — this task adds no new tests).
+Expected: PASS, still 27 tests (15 from Stage 1B/1C + 12 from Task 2 — this task adds no new tests).
 
 Run: `pnpm run build`
 Expected: exits 0, no TypeScript errors (this is the real check that `insertAndSend`'s DOM-typed code compiles correctly against `@types/chrome`/`lib.dom.d.ts`).
@@ -569,63 +569,7 @@ export function renderApp(
 }
 ```
 
-- [ ] **Step 3: Update `src/sidepanel/style.css`**
-
-Replace the existing `.button-row` and `.button-row-name` rules (find them — `.button-row` currently has `display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid #d8d8d8; border-radius: 8px;` and `.button-row-name` currently has `font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`) with:
-
-```css
-.button-row-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.button-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
-  border: 1px solid #d8d8d8;
-  border-radius: 8px;
-}
-
-.button-row-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: left;
-  font: inherit;
-  font-weight: 500;
-  color: inherit;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-
-.button-row-name:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.button-row-status {
-  margin: 0;
-  padding: 0 10px;
-  font-size: 12px;
-  color: #6b6b6b;
-}
-
-.button-row-status-error {
-  color: #b3261e;
-}
-```
-
-Everything else in the file (`.button-list`, `.toolbar`, `.add-button`, `.icon-button` and its variants, `.edit-form*`) stays unchanged.
-
-- [ ] **Step 4: Replace `src/sidepanel/main.ts`**
+- [ ] **Step 3: Replace `src/sidepanel/main.ts`**
 
 ```ts
 import { ToolService } from '../shared/tool-service'
@@ -781,7 +725,7 @@ async function refresh(root: HTMLElement): Promise<void> {
 void refresh(root)
 ```
 
-- [ ] **Step 5: Update `src/sidepanel/style.css`**
+- [ ] **Step 4: Update `src/sidepanel/style.css`**
 
 Replace the existing `.button-row` and `.button-row-name` rules (find them — `.button-row` currently has `display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid #d8d8d8; border-radius: 8px;` and `.button-row-name` currently has `font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`) with:
 
@@ -837,15 +781,15 @@ Replace the existing `.button-row` and `.button-row-name` rules (find them — `
 
 Everything else in the file (`.button-list`, `.toolbar`, `.add-button`, `.icon-button` and its variants, `.edit-form*`) stays unchanged.
 
-- [ ] **Step 6: Build and verify**
+- [ ] **Step 5: Build and verify**
 
 Run: `pnpm run build`
 Expected: exits 0, no TypeScript errors — this confirms `ButtonRow.ts`, `render.ts`, and `main.ts`'s new signatures all line up correctly across the whole task.
 
 Run: `pnpm test`
-Expected: PASS, still 26 tests (no test changes in this task).
+Expected: PASS, still 27 tests (no test changes in this task).
 
-- [ ] **Step 7: Manual end-to-end walkthrough**
+- [ ] **Step 6: Manual end-to-end walkthrough**
 
 This is the first point in Stage 1D where the full feature is reachable. If you have access to a real Chrome browser:
 
@@ -854,9 +798,9 @@ This is the first point in Stage 1D where the full feature is reachable. If you 
 3. Click the button's name. Confirm: the row dims/disables briefly, the prompt text appears in Claude's chat input, the message sends, and Claude responds normally.
 4. Confirm the row returns to normal (no lingering "Running…" or error) after a successful run.
 
-If you're an agent executing this plan and have no real Chrome browser available (the case throughout this project so far), do not fabricate having performed this check. Report explicitly that Step 7 could not be performed and why, and rely on the final acceptance task's manual QA pass being run by the human afterward.
+If you're an agent executing this plan and have no real Chrome browser available (the case throughout this project so far), do not fabricate having performed this check. Report explicitly that Step 6 could not be performed and why, and rely on the final acceptance task's manual QA pass being run by the human afterward.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add src/sidepanel/ButtonRow.ts src/sidepanel/render.ts src/sidepanel/style.css src/sidepanel/main.ts
@@ -874,7 +818,7 @@ git commit -m "feat: add clickable run trigger, per-row run state, and onRun wir
 - [ ] **Step 1: Run the full automated test suite**
 
 Run: `pnpm test`
-Expected: PASS, all 26 tests green.
+Expected: PASS, all 27 tests green.
 
 - [ ] **Step 2: Run the build**
 
