@@ -1,9 +1,11 @@
-import type { Button } from '../types'
+import type { Button, ButtonType } from '../types'
 import type { StorageAdapter } from './storage-adapter'
 
 const STORAGE_KEY = 'buttons'
 
-function isButton(value: unknown): value is Button {
+type RawButton = { id: string; name: string; order: number; prompt: string; type?: unknown }
+
+function isRawButton(value: unknown): value is RawButton {
   if (typeof value !== 'object' || value === null) return false
   const candidate = value as Record<string, unknown>
   return (
@@ -14,12 +16,26 @@ function isButton(value: unknown): value is Button {
   )
 }
 
+function normalizeType(type: unknown): ButtonType {
+  return type === 'skill' ? 'skill' : 'prompt'
+}
+
+function normalizeButton(raw: RawButton): Button {
+  return {
+    id: raw.id,
+    name: raw.name,
+    order: raw.order,
+    prompt: raw.prompt,
+    type: normalizeType(raw.type),
+  }
+}
+
 export class ChromeLocalStorageAdapter implements StorageAdapter {
   async getButtons(): Promise<Button[]> {
     const result = await chrome.storage.local.get(STORAGE_KEY)
     const stored = result[STORAGE_KEY]
     if (!Array.isArray(stored)) return []
-    return stored.filter(isButton)
+    return stored.filter(isRawButton).map(normalizeButton)
   }
 
   async saveButton(button: Button): Promise<void> {
