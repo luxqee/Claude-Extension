@@ -5,18 +5,30 @@ import type { Button } from '../../src/shared/types'
 describe('serializeButtons', () => {
   it('serializes buttons to a JSON array of name/prompt pairs, dropping id and order', () => {
     const buttons: Button[] = [
-      { id: '1', name: 'Summarize', order: 0, prompt: 'Summarize this.' },
-      { id: '2', name: 'Translate', order: 1, prompt: 'Translate this.' },
+      { id: '1', name: 'Summarize', order: 0, prompt: 'Summarize this.', type: 'prompt' },
+      { id: '2', name: 'Translate', order: 1, prompt: 'Translate this.', type: 'prompt' },
     ]
     const json = serializeButtons(buttons)
     expect(JSON.parse(json)).toEqual([
-      { name: 'Summarize', prompt: 'Summarize this.' },
-      { name: 'Translate', prompt: 'Translate this.' },
+      { name: 'Summarize', prompt: 'Summarize this.', type: 'prompt' },
+      { name: 'Translate', prompt: 'Translate this.', type: 'prompt' },
     ])
   })
 
   it('serializes an empty list to an empty array', () => {
     expect(JSON.parse(serializeButtons([]))).toEqual([])
+  })
+
+  it('includes each button\'s type in the exported JSON', () => {
+    const buttons: Button[] = [
+      { id: '1', name: 'Summarize', order: 0, prompt: 'Summarize this.', type: 'prompt' },
+      { id: '2', name: 'Doc Summary', order: 1, prompt: '/doc-summary', type: 'skill' },
+    ]
+    const json = serializeButtons(buttons)
+    expect(JSON.parse(json)).toEqual([
+      { name: 'Summarize', prompt: 'Summarize this.', type: 'prompt' },
+      { name: 'Doc Summary', prompt: '/doc-summary', type: 'skill' },
+    ])
   })
 })
 
@@ -27,14 +39,16 @@ describe('parseImportedButtons', () => {
       { name: 'Translate', prompt: 'Translate this.' },
     ])
     expect(parseImportedButtons(json)).toEqual([
-      { name: 'Summarize', prompt: 'Summarize this.' },
-      { name: 'Translate', prompt: 'Translate this.' },
+      { name: 'Summarize', prompt: 'Summarize this.', type: 'prompt' },
+      { name: 'Translate', prompt: 'Translate this.', type: 'prompt' },
     ])
   })
 
   it('ignores extra fields like id or order on each entry', () => {
     const json = JSON.stringify([{ id: 'x', order: 5, name: 'Summarize', prompt: 'Summarize this.' }])
-    expect(parseImportedButtons(json)).toEqual([{ name: 'Summarize', prompt: 'Summarize this.' }])
+    expect(parseImportedButtons(json)).toEqual([
+      { name: 'Summarize', prompt: 'Summarize this.', type: 'prompt' },
+    ])
   })
 
   it('returns an empty array for an empty JSON array', () => {
@@ -70,5 +84,22 @@ describe('parseImportedButtons', () => {
   it('reports the correct 1-based index for the second entry', () => {
     const json = JSON.stringify([{ name: 'Summarize', prompt: 'Summarize this.' }, { name: 'Bad' }])
     expect(() => parseImportedButtons(json)).toThrow('Tool 2 is missing a prompt.')
+  })
+
+  it('preserves type: "skill" on import', () => {
+    const json = JSON.stringify([{ name: 'Doc Summary', prompt: '/doc-summary', type: 'skill' }])
+    expect(parseImportedButtons(json)).toEqual([{ name: 'Doc Summary', prompt: '/doc-summary', type: 'skill' }])
+  })
+
+  it('defaults a missing type to "prompt" on import', () => {
+    const json = JSON.stringify([{ name: 'Summarize', prompt: 'Summarize this.' }])
+    expect(parseImportedButtons(json)).toEqual([
+      { name: 'Summarize', prompt: 'Summarize this.', type: 'prompt' },
+    ])
+  })
+
+  it('defaults an unrecognized type value to "prompt" on import', () => {
+    const json = JSON.stringify([{ name: 'Weird', prompt: 'hi', type: 'bogus' }])
+    expect(parseImportedButtons(json)).toEqual([{ name: 'Weird', prompt: 'hi', type: 'prompt' }])
   })
 })
