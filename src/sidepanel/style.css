@@ -32,7 +32,6 @@ body {
 .button-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   padding: 8px 10px;
   border: 1px solid #d8d8d8;
@@ -74,6 +73,7 @@ body {
 .toolbar {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
   margin-bottom: 10px;
 }
 
@@ -159,4 +159,92 @@ body {
   border: 1px solid #d8d8d8;
   background: white;
   color: #1a1a1a;
+}
+
+.drag-handle {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: #6b6b6b;
+  padding: 4px 6px;
+  font-size: 14px;
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.button-row-wrapper.dragging {
+  opacity: 0.5;
+}
+
+.button-row-wrapper.drag-over-top {
+  box-shadow: 0 -2px 0 0 #d97757;
+}
+
+.button-row-wrapper.drag-over-bottom {
+  box-shadow: 0 2px 0 0 #d97757;
+}
+
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-heading {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-action-button {
+  align-self: flex-start;
+  border: 1px solid #d8d8d8;
+  border-radius: 6px;
+  background: white;
+  color: #1a1a1a;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.settings-file-input {
+  display: none;
+}
+
+.settings-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #6b6b6b;
+}
+
+.settings-error {
+  margin: 0;
+  font-size: 12px;
+  color: #b3261e;
+}
+
+.settings-success {
+  margin: 0;
+  font-size: 12px;
+  color: #2e7d32;
+}
+
+.settings-back-button {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  color: #6b6b6b;
+  padding: 4px 0;
+  font-size: 13px;
+  cursor: pointer;
 }

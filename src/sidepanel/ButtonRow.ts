@@ -1,15 +1,18 @@
 import type { Button } from '../shared/types'
 
 export interface ButtonRowContext {
-  isFirst: boolean
-  isLast: boolean
   isRunning: boolean
   runError: string | null
   onRun: () => void
   onEdit: () => void
   onDelete: () => void
-  onMoveUp: () => void
-  onMoveDown: () => void
+  onDrop: (draggedId: string, position: 'before' | 'after') => void
+  onArrowMove: (direction: 'up' | 'down') => void
+}
+
+function dropPosition(event: DragEvent, item: HTMLElement): 'before' | 'after' {
+  const rect = item.getBoundingClientRect()
+  return event.clientY - rect.top > rect.height / 2 ? 'after' : 'before'
 }
 
 export function renderButtonRow(button: Button, context: ButtonRowContext): HTMLElement {
@@ -18,6 +21,31 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
 
   const row = document.createElement('div')
   row.className = 'button-row'
+
+  const dragHandle = document.createElement('button')
+  dragHandle.type = 'button'
+  dragHandle.className = 'drag-handle'
+  dragHandle.textContent = '⠿'
+  dragHandle.setAttribute('aria-label', `Reorder ${button.name}. Press arrow keys to move, or drag.`)
+  dragHandle.draggable = true
+  dragHandle.addEventListener('dragstart', (event) => {
+    event.dataTransfer?.setData('text/plain', button.id)
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
+    item.classList.add('dragging')
+  })
+  dragHandle.addEventListener('dragend', () => {
+    item.classList.remove('dragging')
+  })
+  dragHandle.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      context.onArrowMove('up')
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      context.onArrowMove('down')
+    }
+  })
+  row.appendChild(dragHandle)
 
   const name = document.createElement('button')
   name.type = 'button'
@@ -30,24 +58,6 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
 
   const controls = document.createElement('div')
   controls.className = 'button-row-controls'
-
-  const upButton = document.createElement('button')
-  upButton.type = 'button'
-  upButton.className = 'icon-button'
-  upButton.textContent = '↑'
-  upButton.setAttribute('aria-label', `Move ${button.name} up`)
-  upButton.disabled = context.isFirst
-  upButton.addEventListener('click', context.onMoveUp)
-  controls.appendChild(upButton)
-
-  const downButton = document.createElement('button')
-  downButton.type = 'button'
-  downButton.className = 'icon-button'
-  downButton.textContent = '↓'
-  downButton.setAttribute('aria-label', `Move ${button.name} down`)
-  downButton.disabled = context.isLast
-  downButton.addEventListener('click', context.onMoveDown)
-  controls.appendChild(downButton)
 
   const editButton = document.createElement('button')
   editButton.type = 'button'
@@ -68,14 +78,35 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
   row.appendChild(controls)
   item.appendChild(row)
 
+  item.addEventListener('dragover', (event) => {
+    event.preventDefault()
+    const isAfter = dropPosition(event, item) === 'after'
+    item.classList.toggle('drag-over-top', !isAfter)
+    item.classList.toggle('drag-over-bottom', isAfter)
+  })
+  item.addEventListener('dragleave', () => {
+    item.classList.remove('drag-over-top', 'drag-over-bottom')
+  })
+  item.addEventListener('drop', (event) => {
+    event.preventDefault()
+    item.classList.remove('drag-over-top', 'drag-over-bottom')
+    const draggedId = event.dataTransfer?.getData('text/plain')
+    if (!draggedId || draggedId === button.id) return
+    context.onDrop(draggedId, dropPosition(event, item))
+  })
+
   if (context.isRunning) {
     const status = document.createElement('p')
     status.className = 'button-row-status'
+    status.setAttribute('role', 'status')
+    status.setAttribute('aria-live', 'polite')
     status.textContent = 'Running…'
     item.appendChild(status)
   } else if (context.runError) {
     const status = document.createElement('p')
     status.className = 'button-row-status button-row-status-error'
+    status.setAttribute('role', 'status')
+    status.setAttribute('aria-live', 'polite')
     status.textContent = context.runError
     item.appendChild(status)
   }

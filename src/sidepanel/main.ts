@@ -1,8 +1,16 @@
 import { ToolService } from '../shared/tool-service'
 import { ChromeLocalStorageAdapter } from '../shared/storage/chrome-local-adapter'
-import { renderApp, type View, type RunState } from './render'
+import {
+  renderApp,
+  withMovedId,
+  withSwappedAdjacent,
+  type View,
+  type RunState,
+  type SettingsState,
+} from './render'
 import type { Button } from '../shared/types'
 import type { InsertPromptRequest, InsertPromptResponse } from '../shared/messages'
+import { parseImportedButtons, serializeButtons } from '../shared/backup'
 
 const toolService = new ToolService(new ChromeLocalStorageAdapter())
 const root = document.getElementById('app')
@@ -13,6 +21,7 @@ if (!root) {
 
 let view: View = { mode: 'list' }
 const runState = new Map<string, RunState>()
+const settingsState: SettingsState = { error: null, successCount: null }
 
 function clearRunErrors(): void {
   for (const [id, state] of runState) {
@@ -25,7 +34,7 @@ function clearRunErrors(): void {
 async function refresh(root: HTMLElement): Promise<void> {
   try {
     const buttons = await toolService.listButtons()
-    renderApp(root, buttons, view, runState, {
+    renderApp(root, buttons, view, runState, settingsState, {
       onRun: async (button: Button) => {
         const alreadyRunning = [...runState.values()].some((state) => state.isRunning)
         if (alreadyRunning) return
@@ -94,12 +103,14 @@ async function refresh(root: HTMLElement): Promise<void> {
           root.textContent = 'Something went wrong deleting that tool. Check the console for details.'
         }
       },
-      onMoveUp: async (button: Button) => {
+      onDrop: async (draggedId: string, targetId: string, position: 'before' | 'after') => {
         clearRunErrors()
-        const ids = buttons.map((b) => b.id)
-        const index = ids.indexOf(button.id)
-        if (index <= 0) return
-        ;[ids[index - 1], ids[index]] = [ids[index], ids[index - 1]]
+        const ids = withMovedId(
+          buttons.map((b) => b.id),
+          draggedId,
+          targetId,
+          position,
+        )
         try {
           await toolService.reorderButtons(ids)
           await refresh(root)
@@ -108,12 +119,13 @@ async function refresh(root: HTMLElement): Promise<void> {
           root.textContent = 'Something went wrong reordering your tools. Check the console for details.'
         }
       },
-      onMoveDown: async (button: Button) => {
+      onArrowMove: async (id: string, direction: 'up' | 'down') => {
         clearRunErrors()
-        const ids = buttons.map((b) => b.id)
-        const index = ids.indexOf(button.id)
-        if (index === -1 || index >= ids.length - 1) return
-        ;[ids[index], ids[index + 1]] = [ids[index + 1], ids[index]]
+        const ids = withSwappedAdjacent(
+          buttons.map((b) => b.id),
+          id,
+          direction,
+        )
         try {
           await toolService.reorderButtons(ids)
           await refresh(root)
@@ -140,6 +152,54 @@ async function refresh(root: HTMLElement): Promise<void> {
       },
       onCancel: () => {
         clearRunErrors()
+        view = { mode: 'list' }
+        void refresh(root)
+      },
+      onOpenSettings: () => {
+        clearRunErrors()
+        settingsState.error = null
+        settingsState.successCount = null
+        view = { mode: 'settings' }
+        void refresh(root)
+      },
+      onExport: () => {
+        try {
+          const json = serializeButtons(buttons)
+          const blob = new Blob([json], { type: 'application/json' })
+          const url = URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = url
+          link.download = 'claude-tools.json'
+          link.click()
+          URL.revokeObjectURL(url)
+        } catch (error) {
+          console.error('[Claude Tools] failed to export tools', error)
+          settingsState.error = 'Something went wrong exporting your tools. Check the console for details.'
+          settingsState.successCount = null
+          void refresh(root)
+        }
+      },
+      onImport: async (file: File) => {
+        try {
+          const text = await file.text()
+          const parsed = parseImportedButtons(text)
+          for (const { name, prompt } of parsed) {
+            await toolService.createButton(name, prompt)
+          }
+          settingsState.error = null
+          settingsState.successCount = parsed.length
+          await refresh(root)
+        } catch (error) {
+          console.error('[Claude Tools] failed to import tools', error)
+          settingsState.error =
+            error instanceof Error ? error.message : 'Something went wrong importing that file.'
+          settingsState.successCount = null
+          await refresh(root)
+        }
+      },
+      onSettingsBack: () => {
+        settingsState.error = null
+        settingsState.successCount = null
         view = { mode: 'list' }
         void refresh(root)
       },
