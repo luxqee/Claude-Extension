@@ -19,6 +19,7 @@
 - No boundary (storage, messaging, DOM) may fail silently — every failure path logs to console and, where user-facing, surfaces in the UI.
 - Never build `<div>`/element content for user-supplied strings (button name, prompt) via `innerHTML` — use `textContent`/`.value` to avoid XSS.
 - Claude-specific DOM selectors do not appear anywhere in this plan's scope — that logic is isolated to `claude-adapter.ts` in the Stage 1D plan, not touched here.
+- **Package manager: pnpm, not npm.** Decided during Task 1 — plain `npm install` fails in this environment with a crash inside npm's own bundled `minipass-sized` module, traced to a broken Laravel Herd-managed nvm npm installation whose config leaks into npm's resolution chain. This is a machine-level issue unrelated to the project. `pnpm-lock.yaml` is the canonical lockfile; every `npm run`/`npm test`/`npm install` step below is written as its `pnpm` equivalent.
 
 ---
 
@@ -63,8 +64,10 @@
 
 - [ ] **Step 2: Install dependencies**
 
-Run: `npm install`
-Expected: `node_modules/` is created, `package-lock.json` is created, exit code 0.
+Run: `pnpm install`
+Expected: `node_modules/` is created, `pnpm-lock.yaml` is created, exit code 0.
+
+(This project standardizes on pnpm: plain `npm install` fails in this environment due to a broken, unrelated global npm configuration — see the ledger entry for Task 1. `pnpm run <script>` and `pnpm test` execute the same `package.json` scripts npm would.)
 
 - [ ] **Step 3: Create `tsconfig.json`**
 
@@ -204,7 +207,7 @@ if (root) {
 
 - [ ] **Step 8: Build and verify output**
 
-Run: `npm run build`
+Run: `pnpm run build`
 Expected: exits 0, creates `dist/manifest.json`, `dist/src/sidepanel/index.html`, and JS chunks for the service worker and content script.
 
 Run: `grep -o '"side_panel"' dist/manifest.json` (or open the file and check)
@@ -222,7 +225,7 @@ This is a manual check — there is no automated test for "Chrome loads the exte
 - [ ] **Step 10: Commit**
 
 ```bash
-git add package.json package-lock.json tsconfig.json vite.config.ts manifest.config.ts .gitignore src
+git add package.json pnpm-lock.yaml tsconfig.json vite.config.ts manifest.config.ts .gitignore src
 git commit -m "chore: scaffold MV3 extension with Vite + CRXJS"
 ```
 
@@ -371,7 +374,7 @@ describe('ChromeLocalStorageAdapter', () => {
 
 - [ ] **Step 5: Run tests to verify they fail**
 
-Run: `npm test -- chrome-local-adapter`
+Run: `pnpm test -- chrome-local-adapter`
 Expected: FAIL — `Cannot find module '../../../src/shared/storage/chrome-local-adapter'`
 
 - [ ] **Step 6: Implement `src/shared/storage/chrome-local-adapter.ts`**
@@ -433,7 +436,7 @@ export class ChromeLocalStorageAdapter implements StorageAdapter {
 
 - [ ] **Step 7: Run tests to verify they pass**
 
-Run: `npm test -- chrome-local-adapter`
+Run: `pnpm test -- chrome-local-adapter`
 Expected: PASS, all 7 tests green.
 
 - [ ] **Step 8: Commit**
@@ -563,7 +566,7 @@ describe('ToolService', () => {
 
 - [ ] **Step 3: Run tests to verify they fail**
 
-Run: `npm test -- tool-service`
+Run: `pnpm test -- tool-service`
 Expected: FAIL — `Cannot find module '../../src/shared/tool-service'`
 
 - [ ] **Step 4: Implement `src/shared/tool-service.ts`**
@@ -615,12 +618,12 @@ export class ToolService {
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `npm test -- tool-service`
+Run: `pnpm test -- tool-service`
 Expected: PASS, all 6 tests green.
 
 - [ ] **Step 6: Run the full test suite**
 
-Run: `npm test`
+Run: `pnpm test`
 Expected: PASS, 13 tests total (7 from Task 2 + 6 from this task).
 
 - [ ] **Step 7: Commit**
@@ -669,7 +672,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 - [ ] **Step 2: Build**
 
-Run: `npm run build`
+Run: `pnpm run build`
 Expected: exits 0.
 
 - [ ] **Step 3: Manually verify in Chrome**
@@ -716,7 +719,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 - [ ] **Step 2: Build and manually verify**
 
-Run: `npm run build`, then reload the extension in `chrome://extensions`.
+Run: `pnpm run build`, then reload the extension in `chrome://extensions`.
 
 1. Open `https://claude.ai`, open the page's DevTools console.
 2. Confirm the log line `[Claude Tools] content script loaded on https://claude.ai/...` appears.
@@ -870,7 +873,7 @@ void refresh()
 
 - [ ] **Step 5: Build and manually verify**
 
-Run: `npm run build`, reload the extension in `chrome://extensions`.
+Run: `pnpm run build`, reload the extension in `chrome://extensions`.
 
 1. Open `https://claude.ai`, open the side panel: confirm it shows "No tools yet. Buttons you add will show up here."
 2. Open the side panel's own DevTools (right-click inside the panel → Inspect), go to the Console, and run:
@@ -1269,7 +1272,7 @@ Append to the end of the existing file:
 
 - [ ] **Step 6: Build and manually verify the full CRUD + reorder flow**
 
-Run: `npm run build`, reload the extension in `chrome://extensions`, open `https://claude.ai`, open the side panel.
+Run: `pnpm run build`, reload the extension in `chrome://extensions`, open `https://claude.ai`, open the side panel.
 
 1. **Create:** click "+ Add tool", fill in Name "Summarize" and Prompt "Summarize this page.", click Save. Confirm it appears in the list.
 2. **Create a second:** repeat with Name "Translate", Prompt "Translate this to French.". Confirm both appear, "Summarize" first.
@@ -1298,12 +1301,12 @@ git commit -m "feat: add full button CRUD and reorder UI to side panel"
 
 - [ ] **Step 1: Run the full automated test suite one more time**
 
-Run: `npm test`
+Run: `pnpm test`
 Expected: PASS, all tests green (13 tests from Tasks 2–3).
 
 - [ ] **Step 2: Run the build one more time**
 
-Run: `npm run build`
+Run: `pnpm run build`
 Expected: exits 0, no TypeScript errors.
 
 - [ ] **Step 3: Fresh-install check**
