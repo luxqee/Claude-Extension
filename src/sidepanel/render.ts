@@ -4,7 +4,13 @@ import { renderEditForm } from './EditForm'
 
 export type View = { mode: 'list' } | { mode: 'form'; button: Button | null }
 
+export interface RunState {
+  isRunning: boolean
+  error: string | null
+}
+
 export interface RenderContext {
+  onRun: (button: Button) => void
   onEdit: (button: Button) => void
   onDelete: (button: Button) => void
   onMoveUp: (button: Button) => void
@@ -18,6 +24,7 @@ export function renderApp(
   root: HTMLElement,
   buttons: Button[],
   view: View,
+  runState: Map<string, RunState>,
   context: RenderContext,
 ): void {
   root.innerHTML = ''
@@ -48,10 +55,14 @@ export function renderApp(
   const list = document.createElement('ul')
   list.className = 'button-list'
   buttons.forEach((button, index) => {
+    const state = runState.get(button.id) ?? { isRunning: false, error: null }
     list.appendChild(
       renderButtonRow(button, {
         isFirst: index === 0,
         isLast: index === buttons.length - 1,
+        isRunning: state.isRunning,
+        runError: state.error,
+        onRun: () => context.onRun(button),
         onEdit: () => context.onEdit(button),
         onDelete: () => context.onDelete(button),
         onMoveUp: () => context.onMoveUp(button),

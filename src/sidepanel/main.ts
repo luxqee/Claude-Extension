@@ -1,7 +1,8 @@
 import { ToolService } from '../shared/tool-service'
 import { ChromeLocalStorageAdapter } from '../shared/storage/chrome-local-adapter'
-import { renderApp, type View } from './render'
+import { renderApp, type View, type RunState } from './render'
 import type { Button } from '../shared/types'
+import type { InsertAndSendRequest, InsertAndSendResponse } from '../shared/messages'
 
 const toolService = new ToolService(new ChromeLocalStorageAdapter())
 const root = document.getElementById('app')
@@ -11,22 +12,78 @@ if (!root) {
 }
 
 let view: View = { mode: 'list' }
+const runState = new Map<string, RunState>()
+
+function clearRunErrors(): void {
+  for (const [id, state] of runState) {
+    if (state.error && !state.isRunning) {
+      runState.delete(id)
+    }
+  }
+}
 
 async function refresh(root: HTMLElement): Promise<void> {
   try {
     const buttons = await toolService.listButtons()
-    renderApp(root, buttons, view, {
+    renderApp(root, buttons, view, runState, {
+      onRun: async (button: Button) => {
+        clearRunErrors()
+        runState.set(button.id, { isRunning: true, error: null })
+        await refresh(root)
+
+        try {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+          if (!tab?.id || !tab.url) {
+            console.warn('[Claude Tools] no active claude.ai tab to run against')
+            runState.set(button.id, { isRunning: false, error: 'Open claude.ai to use this tool.' })
+            await refresh(root)
+            return
+          }
+
+          const request: InsertAndSendRequest = { type: 'INSERT_AND_SEND', prompt: button.prompt }
+          let response: InsertAndSendResponse
+          try {
+            response = await chrome.tabs.sendMessage<InsertAndSendRequest, InsertAndSendResponse>(
+              tab.id,
+              request,
+            )
+          } catch (error) {
+            console.error('[Claude Tools] failed to reach content script', error)
+            runState.set(button.id, { isRunning: false, error: 'Reload the Claude tab and try again.' })
+            await refresh(root)
+            return
+          }
+
+          if (response.ok) {
+            runState.set(button.id, { isRunning: false, error: null })
+          } else {
+            console.error('[Claude Tools] run failed', response.error, response.message)
+            runState.set(button.id, { isRunning: false, error: response.message })
+          }
+          await refresh(root)
+        } catch (error) {
+          console.error('[Claude Tools] unexpected error running button', error)
+          runState.set(button.id, {
+            isRunning: false,
+            error: 'Something went wrong running that tool. Check the console for details.',
+          })
+          await refresh(root)
+        }
+      },
       onAddClick: () => {
+        clearRunErrors()
         view = { mode: 'form', button: null }
         void refresh(root)
       },
       onEdit: (button: Button) => {
+        clearRunErrors()
         view = { mode: 'form', button }
         void refresh(root)
       },
       onDelete: async (button: Button) => {
         const confirmed = window.confirm(`Delete "${button.name}"? This cannot be undone.`)
         if (!confirmed) return
+        clearRunErrors()
         try {
           await toolService.deleteButton(button.id)
           await refresh(root)
@@ -36,6 +93,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         }
       },
       onMoveUp: async (button: Button) => {
+        clearRunErrors()
         const ids = buttons.map((b) => b.id)
         const index = ids.indexOf(button.id)
         if (index <= 0) return
@@ -49,6 +107,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         }
       },
       onMoveDown: async (button: Button) => {
+        clearRunErrors()
         const ids = buttons.map((b) => b.id)
         const index = ids.indexOf(button.id)
         if (index === -1 || index >= ids.length - 1) return
@@ -63,6 +122,7 @@ async function refresh(root: HTMLElement): Promise<void> {
       },
       onSave: async (data) => {
         if (!data.name || !data.prompt) return
+        clearRunErrors()
         try {
           if (data.id) {
             await toolService.updateButton(data.id, { name: data.name, prompt: data.prompt })
@@ -77,6 +137,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         }
       },
       onCancel: () => {
+        clearRunErrors()
         view = { mode: 'list' }
         void refresh(root)
       },

@@ -3,6 +3,9 @@ import type { Button } from '../shared/types'
 export interface ButtonRowContext {
   isFirst: boolean
   isLast: boolean
+  isRunning: boolean
+  runError: string | null
+  onRun: () => void
   onEdit: () => void
   onDelete: () => void
   onMoveUp: () => void
@@ -11,12 +14,19 @@ export interface ButtonRowContext {
 
 export function renderButtonRow(button: Button, context: ButtonRowContext): HTMLElement {
   const item = document.createElement('li')
-  item.className = 'button-row'
+  item.className = 'button-row-wrapper'
 
-  const name = document.createElement('span')
+  const row = document.createElement('div')
+  row.className = 'button-row'
+
+  const name = document.createElement('button')
+  name.type = 'button'
   name.className = 'button-row-name'
   name.textContent = button.name
-  item.appendChild(name)
+  name.setAttribute('aria-label', `Run ${button.name}`)
+  name.disabled = context.isRunning
+  name.addEventListener('click', context.onRun)
+  row.appendChild(name)
 
   const controls = document.createElement('div')
   controls.className = 'button-row-controls'
@@ -55,6 +65,20 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
   deleteButton.addEventListener('click', context.onDelete)
   controls.appendChild(deleteButton)
 
-  item.appendChild(controls)
+  row.appendChild(controls)
+  item.appendChild(row)
+
+  if (context.isRunning) {
+    const status = document.createElement('p')
+    status.className = 'button-row-status'
+    status.textContent = 'Running…'
+    item.appendChild(status)
+  } else if (context.runError) {
+    const status = document.createElement('p')
+    status.className = 'button-row-status button-row-status-error'
+    status.textContent = context.runError
+    item.appendChild(status)
+  }
+
   return item
 }
