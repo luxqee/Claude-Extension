@@ -66,6 +66,7 @@ body {
   border: 1px solid #d8d8d8;
   border-radius: 6px;
   background: white;
+  color: #1a1a1a;
   padding: 4px 8px;
   font-size: 12px;
   cursor: pointer;
@@ -126,4 +127,5 @@ body {
 .edit-form-actions button[type='button'] {
   border: 1px solid #d8d8d8;
   background: white;
+  color: #1a1a1a;
 }
