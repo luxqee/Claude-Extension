@@ -4,7 +4,7 @@
   --surface-input: #fff;
   --surface-hover: #f2f2f2;
   --text-primary: #0b0b0b;
-  --text-muted: #898781;
+  --text-muted: #6b6b6b;
   --accent: #d97757;
   --accent-hover: #c96a4a;
   --accent-text-on: #fff;
@@ -234,7 +234,8 @@ body {
 
 .type-toggle-option:has(input:checked) {
   border-color: var(--accent);
-  color: var(--accent);
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
 .type-toggle-option input {
