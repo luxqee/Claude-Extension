@@ -69,4 +69,29 @@ describe('ToolService', () => {
     const buttons = await service.listButtons()
     expect(buttons.map((btn) => btn.id)).toEqual([b.id, a.id])
   })
+
+  it('creates a button with type "prompt" by default', async () => {
+    const button = await service.createButton('Summarize', 'Summarize this.')
+    expect(button.type).toBe('prompt')
+  })
+
+  it('creates a button with an explicit type', async () => {
+    const button = await service.createButton('Doc Summary', '/doc-summary', 'skill')
+    expect(button.type).toBe('skill')
+  })
+
+  it('updates a button\'s type', async () => {
+    const created = await service.createButton('Name', '/something', 'prompt')
+    await service.updateButton(created.id, { type: 'skill' })
+    const [button] = await service.listButtons()
+    expect(button.type).toBe('skill')
+  })
+
+  it('preserves an existing button\'s type when updating unrelated fields', async () => {
+    const created = await service.createButton('Name', '/something', 'skill')
+    await service.updateButton(created.id, { name: 'Renamed' })
+    const [button] = await service.listButtons()
+    expect(button.type).toBe('skill')
+    expect(button.name).toBe('Renamed')
+  })
 })

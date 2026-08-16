@@ -1,4 +1,4 @@
-import type { Button } from './types'
+import type { Button, ButtonType } from './types'
 import type { StorageAdapter } from './storage/storage-adapter'
 
 export class ToolService {
@@ -9,7 +9,7 @@ export class ToolService {
     return [...buttons].sort((a, b) => a.order - b.order)
   }
 
-  async createButton(name: string, prompt: string): Promise<Button> {
+  async createButton(name: string, prompt: string, type: ButtonType = 'prompt'): Promise<Button> {
     const existing = await this.storage.getButtons()
     const nextOrder = existing.length === 0 ? 0 : Math.max(...existing.map((b) => b.order)) + 1
     const button: Button = {
@@ -17,12 +17,16 @@ export class ToolService {
       name,
       order: nextOrder,
       prompt,
+      type,
     }
     await this.storage.saveButton(button)
     return button
   }
 
-  async updateButton(id: string, updates: { name?: string; prompt?: string }): Promise<void> {
+  async updateButton(
+    id: string,
+    updates: { name?: string; prompt?: string; type?: ButtonType },
+  ): Promise<void> {
     const buttons = await this.storage.getButtons()
     const button = buttons.find((b) => b.id === id)
     if (!button) throw new Error(`Button not found: ${id}`)
@@ -30,6 +34,7 @@ export class ToolService {
       ...button,
       name: updates.name ?? button.name,
       prompt: updates.prompt ?? button.prompt,
+      type: updates.type ?? button.type,
     })
   }
 
