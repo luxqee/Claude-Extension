@@ -2,7 +2,7 @@ import { ToolService } from '../shared/tool-service'
 import { ChromeLocalStorageAdapter } from '../shared/storage/chrome-local-adapter'
 import { renderApp, type View, type RunState } from './render'
 import type { Button } from '../shared/types'
-import type { InsertAndSendRequest, InsertAndSendResponse } from '../shared/messages'
+import type { InsertPromptRequest, InsertPromptResponse } from '../shared/messages'
 
 const toolService = new ToolService(new ChromeLocalStorageAdapter())
 const root = document.getElementById('app')
@@ -42,10 +42,10 @@ async function refresh(root: HTMLElement): Promise<void> {
             return
           }
 
-          const request: InsertAndSendRequest = { type: 'INSERT_AND_SEND', prompt: button.prompt }
-          let response: InsertAndSendResponse
+          const request: InsertPromptRequest = { type: 'INSERT_PROMPT', prompt: button.prompt }
+          let response: InsertPromptResponse
           try {
-            response = await chrome.tabs.sendMessage<InsertAndSendRequest, InsertAndSendResponse>(
+            response = await chrome.tabs.sendMessage<InsertPromptRequest, InsertPromptResponse>(
               tab.id,
               request,
             )

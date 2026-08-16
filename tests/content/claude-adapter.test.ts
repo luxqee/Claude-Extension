@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { isInputEmpty, isSendButtonUsable, pollFor } from '../../src/content/claude-adapter'
+import { isInputEmpty, pollFor } from '../../src/content/claude-adapter'
 
 describe('pollFor', () => {
   beforeEach(() => {
@@ -39,33 +39,6 @@ describe('pollFor', () => {
 
     expect(result).toBeNull()
     expect(find).toHaveBeenCalledTimes(4)
-  })
-})
-
-describe('isSendButtonUsable', () => {
-  it('returns false for null', () => {
-    expect(isSendButtonUsable(null)).toBe(false)
-  })
-
-  it('returns false when disabled is true', () => {
-    expect(isSendButtonUsable({ disabled: true, getAttribute: () => null })).toBe(false)
-  })
-
-  it('returns false when aria-disabled is "true"', () => {
-    expect(isSendButtonUsable({ disabled: false, getAttribute: () => 'true' })).toBe(false)
-  })
-
-  it('returns true when enabled and not aria-disabled', () => {
-    expect(isSendButtonUsable({ disabled: false, getAttribute: () => null })).toBe(true)
-  })
-
-  it('ignores an unrelated data-trigger-disabled attribute', () => {
-    expect(
-      isSendButtonUsable({
-        disabled: false,
-        getAttribute: (name: string) => (name === 'data-trigger-disabled' ? '' : null),
-      }),
-    ).toBe(true)
   })
 })
 

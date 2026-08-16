@@ -1,14 +1,10 @@
-export interface InsertAndSendRequest {
-  type: 'INSERT_AND_SEND'
+export interface InsertPromptRequest {
+  type: 'INSERT_PROMPT'
   prompt: string
 }
 
-export type InsertAndSendErrorCode =
-  | 'no_claude_tab'
-  | 'no_content_script'
-  | 'input_not_found'
-  | 'send_failed'
+export type InsertPromptErrorCode = 'input_not_found' | 'insert_failed'
 
-export type InsertAndSendResponse =
+export type InsertPromptResponse =
   | { ok: true }
-  | { ok: false; error: InsertAndSendErrorCode; message: string }
+  | { ok: false; error: InsertPromptErrorCode; message: string }
