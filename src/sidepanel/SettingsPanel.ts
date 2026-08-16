@@ -55,15 +55,11 @@ export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement 
   if (context.importError) {
     const error = document.createElement('p')
     error.className = 'settings-error'
-    error.setAttribute('role', 'status')
-    error.setAttribute('aria-live', 'polite')
     error.textContent = context.importError
     importSection.appendChild(error)
   } else if (context.importSuccessCount !== null) {
     const success = document.createElement('p')
     success.className = 'settings-success'
-    success.setAttribute('role', 'status')
-    success.setAttribute('aria-live', 'polite')
     success.textContent = `Imported ${context.importSuccessCount} tool${context.importSuccessCount === 1 ? '' : 's'}.`
     importSection.appendChild(success)
   }

@@ -43,10 +43,10 @@ export function withMovedId(
   return remaining
 }
 
-export function withSwappedAdjacent(ids: string[], id: string, direction: 'up' | 'down'): string[] {
+export function withSwappedAdjacent(ids: string[], id: string, direction: 'up' | 'down'): string[] | null {
   const index = ids.indexOf(id)
   const swapWith = direction === 'up' ? index - 1 : index + 1
-  if (index === -1 || swapWith < 0 || swapWith >= ids.length) return ids
+  if (index === -1 || swapWith < 0 || swapWith >= ids.length) return null
   const next = [...ids]
   ;[next[index], next[swapWith]] = [next[swapWith], next[index]]
   return next

@@ -26,6 +26,7 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
   dragHandle.type = 'button'
   dragHandle.className = 'drag-handle'
   dragHandle.textContent = '⠿'
+  dragHandle.dataset.buttonId = button.id
   dragHandle.setAttribute('aria-label', `Reorder ${button.name}. Press arrow keys to move, or drag.`)
   dragHandle.draggable = true
   dragHandle.addEventListener('dragstart', (event) => {
@@ -98,15 +99,11 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
   if (context.isRunning) {
     const status = document.createElement('p')
     status.className = 'button-row-status'
-    status.setAttribute('role', 'status')
-    status.setAttribute('aria-live', 'polite')
     status.textContent = 'Running…'
     item.appendChild(status)
   } else if (context.runError) {
     const status = document.createElement('p')
     status.className = 'button-row-status button-row-status-error'
-    status.setAttribute('role', 'status')
-    status.setAttribute('aria-live', 'polite')
     status.textContent = context.runError
     item.appendChild(status)
   }

@@ -22,6 +22,7 @@ if (!root) {
 let view: View = { mode: 'list' }
 const runState = new Map<string, RunState>()
 const settingsState: SettingsState = { error: null, successCount: null }
+let focusHandleId: string | null = null
 
 function clearRunErrors(): void {
   for (const [id, state] of runState) {
@@ -29,6 +30,11 @@ function clearRunErrors(): void {
       runState.delete(id)
     }
   }
+}
+
+function announce(message: string): void {
+  const region = document.getElementById('live-status')
+  if (region) region.textContent = message
 }
 
 async function refresh(root: HTMLElement): Promise<void> {
@@ -47,6 +53,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           if (!tab?.id || !tab.url) {
             console.warn('[Claude Tools] no active claude.ai tab to run against')
             runState.set(button.id, { isRunning: false, error: 'Open claude.ai to use this tool.' })
+            announce('Open claude.ai to use this tool.')
             if (view.mode === 'list') await refresh(root)
             return
           }
@@ -61,6 +68,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           } catch (error) {
             console.error('[Claude Tools] failed to reach content script', error)
             runState.set(button.id, { isRunning: false, error: 'Reload the Claude tab and try again.' })
+            announce('Reload the Claude tab and try again.')
             if (view.mode === 'list') await refresh(root)
             return
           }
@@ -70,6 +78,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           } else {
             console.error('[Claude Tools] run failed', response.error, response.message)
             runState.set(button.id, { isRunning: false, error: response.message })
+            announce(response.message)
           }
           if (view.mode === 'list') await refresh(root)
         } catch (error) {
@@ -78,6 +87,7 @@ async function refresh(root: HTMLElement): Promise<void> {
             isRunning: false,
             error: 'Something went wrong running that tool. Check the console for details.',
           })
+          announce('Something went wrong running that tool. Check the console for details.')
           if (view.mode === 'list') await refresh(root)
         }
       },
@@ -120,14 +130,16 @@ async function refresh(root: HTMLElement): Promise<void> {
         }
       },
       onArrowMove: async (id: string, direction: 'up' | 'down') => {
-        clearRunErrors()
         const ids = withSwappedAdjacent(
           buttons.map((b) => b.id),
           id,
           direction,
         )
+        if (!ids) return
+        clearRunErrors()
         try {
           await toolService.reorderButtons(ids)
+          focusHandleId = id
           await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] failed to reorder buttons', error)
@@ -170,11 +182,14 @@ async function refresh(root: HTMLElement): Promise<void> {
           const link = document.createElement('a')
           link.href = url
           link.download = 'claude-tools.json'
+          document.body.appendChild(link)
           link.click()
-          URL.revokeObjectURL(url)
+          link.remove()
+          setTimeout(() => URL.revokeObjectURL(url), 0)
         } catch (error) {
           console.error('[Claude Tools] failed to export tools', error)
           settingsState.error = 'Something went wrong exporting your tools. Check the console for details.'
+          announce('Something went wrong exporting your tools. Check the console for details.')
           settingsState.successCount = null
           void refresh(root)
         }
@@ -188,11 +203,13 @@ async function refresh(root: HTMLElement): Promise<void> {
           }
           settingsState.error = null
           settingsState.successCount = parsed.length
+          announce(`Imported ${parsed.length} tool${parsed.length === 1 ? '' : 's'}.`)
           await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] failed to import tools', error)
           settingsState.error =
             error instanceof Error ? error.message : 'Something went wrong importing that file.'
+          announce(settingsState.error)
           settingsState.successCount = null
           await refresh(root)
         }
@@ -204,6 +221,11 @@ async function refresh(root: HTMLElement): Promise<void> {
         void refresh(root)
       },
     })
+    if (focusHandleId) {
+      const handles = Array.from(root.querySelectorAll<HTMLElement>('.drag-handle'))
+      handles.find((el) => el.dataset.buttonId === focusHandleId)?.focus()
+      focusHandleId = null
+    }
   } catch (error) {
     console.error('[Claude Tools] failed to load buttons', error)
     root.textContent = 'Something went wrong loading your tools. Check the console for details.'
