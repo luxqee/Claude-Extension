@@ -21,6 +21,20 @@ describe('ToolService', () => {
     expect(first.prompt).toBe('Summarize this.')
   })
 
+  it('continues past the highest existing order after delete-then-create, instead of reusing a count-based order', async () => {
+    const a = await service.createButton('A', 'a')
+    const b = await service.createButton('B', 'b')
+    const c = await service.createButton('C', 'c')
+    const d = await service.createButton('D', 'd')
+    expect([a.order, b.order, c.order, d.order]).toEqual([0, 1, 2, 3])
+
+    await service.deleteButton(b.id)
+    await service.deleteButton(c.id)
+
+    const e = await service.createButton('E', 'e')
+    expect(e.order).toBe(4)
+  })
+
   it('lists buttons sorted by order', async () => {
     await storage.saveButton({ id: 'b', name: 'B', order: 1, prompt: 'b' })
     await storage.saveButton({ id: 'a', name: 'A', order: 0, prompt: 'a' })

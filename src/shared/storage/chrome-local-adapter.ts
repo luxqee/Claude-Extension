@@ -42,11 +42,19 @@ export class ChromeLocalStorageAdapter implements StorageAdapter {
   async reorderButtons(orderedIds: string[]): Promise<void> {
     const buttons = await this.getButtons()
     const byId = new Map(buttons.map((b) => [b.id, b]))
+    const seen = new Set<string>()
     const reordered: Button[] = []
-    orderedIds.forEach((id, index) => {
+    orderedIds.forEach((id) => {
       const button = byId.get(id)
-      if (button) reordered.push({ ...button, order: index })
+      if (button) {
+        seen.add(id)
+        reordered.push(button)
+      }
     })
-    await chrome.storage.local.set({ [STORAGE_KEY]: reordered })
+    buttons.forEach((button) => {
+      if (!seen.has(button.id)) reordered.push(button)
+    })
+    const withOrder = reordered.map((button, index) => ({ ...button, order: index }))
+    await chrome.storage.local.set({ [STORAGE_KEY]: withOrder })
   }
 }

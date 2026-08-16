@@ -22,12 +22,20 @@ export class FakeStorageAdapter implements StorageAdapter {
   }
 
   async reorderButtons(orderedIds: string[]): Promise<void> {
-    const byId = new Map(this.buttons.map((b) => [b.id, b]))
-    this.buttons = orderedIds
-      .map((id, index) => {
-        const button = byId.get(id)
-        return button ? { ...button, order: index } : undefined
-      })
-      .filter((b): b is Button => b !== undefined)
+    const buttons = this.buttons.map((b) => ({ ...b }))
+    const byId = new Map(buttons.map((b) => [b.id, b]))
+    const seen = new Set<string>()
+    const reordered: Button[] = []
+    orderedIds.forEach((id) => {
+      const button = byId.get(id)
+      if (button) {
+        seen.add(id)
+        reordered.push(button)
+      }
+    })
+    buttons.forEach((button) => {
+      if (!seen.has(button.id)) reordered.push(button)
+    })
+    this.buttons = reordered.map((button, index) => ({ ...button, order: index }))
   }
 }

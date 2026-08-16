@@ -66,6 +66,20 @@ describe('ChromeLocalStorageAdapter', () => {
     ])
   })
 
+  it('preserves a stored button omitted from reorderButtons instead of dropping it', async () => {
+    await adapter.saveButton({ id: '1', name: 'A', order: 0, prompt: 'A' })
+    await adapter.saveButton({ id: '2', name: 'B', order: 1, prompt: 'B' })
+    await adapter.saveButton({ id: '3', name: 'C', order: 2, prompt: 'C' })
+    // Simulate a stale panel that doesn't know about button '3'.
+    await adapter.reorderButtons(['2', '1'])
+    const buttons = await adapter.getButtons()
+    expect(buttons).toEqual([
+      { id: '2', name: 'B', order: 0, prompt: 'B' },
+      { id: '1', name: 'A', order: 1, prompt: 'A' },
+      { id: '3', name: 'C', order: 2, prompt: 'C' },
+    ])
+  })
+
   it('returns an empty array when stored data is corrupt (not an array)', async () => {
     store.set('buttons', 'not-an-array')
     const buttons = await adapter.getButtons()

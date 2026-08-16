@@ -11,10 +11,11 @@ export class ToolService {
 
   async createButton(name: string, prompt: string): Promise<Button> {
     const existing = await this.storage.getButtons()
+    const nextOrder = existing.length === 0 ? 0 : Math.max(...existing.map((b) => b.order)) + 1
     const button: Button = {
       id: crypto.randomUUID(),
       name,
-      order: existing.length,
+      order: nextOrder,
       prompt,
     }
     await this.storage.saveButton(button)
