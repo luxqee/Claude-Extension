@@ -151,9 +151,9 @@ async function refresh(root: HTMLElement): Promise<void> {
         clearRunErrors()
         try {
           if (data.id) {
-            await toolService.updateButton(data.id, { name: data.name, prompt: data.prompt })
+            await toolService.updateButton(data.id, { name: data.name, prompt: data.prompt, type: data.type })
           } else {
-            await toolService.createButton(data.name, data.prompt)
+            await toolService.createButton(data.name, data.prompt, data.type)
           }
           view = { mode: 'list' }
           await refresh(root)
@@ -198,8 +198,8 @@ async function refresh(root: HTMLElement): Promise<void> {
         try {
           const text = await file.text()
           const parsed = parseImportedButtons(text)
-          for (const { name, prompt } of parsed) {
-            await toolService.createButton(name, prompt)
+          for (const { name, prompt, type } of parsed) {
+            await toolService.createButton(name, prompt, type)
           }
           settingsState.error = null
           settingsState.successCount = parsed.length

@@ -1,4 +1,4 @@
-import type { Button } from '../shared/types'
+import type { Button, ButtonType } from '../shared/types'
 import { renderButtonRow } from './ButtonRow'
 import { renderEditForm } from './EditForm'
 import { renderSettingsPanel } from './SettingsPanel'
@@ -22,7 +22,7 @@ export interface RenderContext {
   onDrop: (draggedId: string, targetId: string, position: 'before' | 'after') => void
   onArrowMove: (id: string, direction: 'up' | 'down') => void
   onAddClick: () => void
-  onSave: (data: { id: string | null; name: string; prompt: string }) => void
+  onSave: (data: { id: string | null; name: string; prompt: string; type: ButtonType }) => void
   onCancel: () => void
   onOpenSettings: () => void
   onExport: () => void

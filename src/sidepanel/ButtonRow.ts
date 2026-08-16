@@ -48,6 +48,14 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
   })
   row.appendChild(dragHandle)
 
+  if (button.type === 'skill') {
+    const badge = document.createElement('span')
+    badge.className = 'skill-badge'
+    badge.textContent = '/'
+    badge.setAttribute('aria-hidden', 'true')
+    row.appendChild(badge)
+  }
+
   const name = document.createElement('button')
   name.type = 'button'
   name.className = 'button-row-name'
