@@ -248,3 +248,45 @@ body {
   font-size: 13px;
   cursor: pointer;
 }
+
+:focus-visible {
+  outline: 2px solid #d97757;
+  outline-offset: 2px;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: #f2f2f2;
+}
+
+.icon-button-danger:hover:not(:disabled) {
+  background: #fbeceb;
+}
+
+.add-button:hover {
+  background: #c96a4a;
+}
+
+.button-row-name:hover:not(:disabled) {
+  color: #d97757;
+}
+
+.drag-handle:hover {
+  background: #f2f2f2;
+}
+
+.settings-action-button:hover,
+.settings-button:hover {
+  background: #f2f2f2;
+}
+
+.settings-back-button:hover {
+  color: #1a1a1a;
+}
+
+.edit-form-actions button[type='button']:hover {
+  background: #f2f2f2;
+}
+
+.edit-form-actions button[type='submit']:hover {
+  background: #c96a4a;
+}
