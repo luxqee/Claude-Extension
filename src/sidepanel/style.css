@@ -7,6 +7,8 @@
   --text-muted: #6b6b6b;
   --accent: #d97757;
   --accent-hover: #c96a4a;
+  --accent-solid: #b85a3c;
+  --accent-solid-hover: #a34e33;
   --accent-text-on: #fff;
   --border: #e1e0d9;
   --danger: #b3261e;
@@ -30,6 +32,8 @@
     --text-muted: #898781;
     --accent: #d97757;
     --accent-hover: #e08a68;
+    --accent-solid: #b85a3c;
+    --accent-solid-hover: #a34e33;
     --accent-text-on: #fff;
     --border: #33322f;
     --danger: #ff6b60;
@@ -131,7 +135,7 @@ body {
 .add-button {
   border: none;
   border-radius: 6px;
-  background: var(--accent);
+  background: var(--accent-solid);
   color: var(--accent-text-on);
   padding: 6px 12px;
   font-size: 13px;
@@ -170,7 +174,7 @@ body {
   gap: 10px;
 }
 
-.edit-form label {
+.edit-form > label {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -179,8 +183,8 @@ body {
   color: var(--text-muted);
 }
 
-.edit-form input,
-.edit-form textarea {
+.edit-form > label input,
+.edit-form > label textarea {
   font: inherit;
   padding: 6px 8px;
   background: var(--surface-input);
@@ -205,7 +209,7 @@ body {
 
 .edit-form-actions button[type='submit'] {
   border: none;
-  background: var(--accent);
+  background: var(--accent-solid);
   color: var(--accent-text-on);
 }
 
@@ -344,11 +348,12 @@ body {
 }
 
 .add-button:hover {
-  background: var(--accent-hover);
+  background: var(--accent-solid-hover);
 }
 
 .button-row-name:hover:not(:disabled) {
-  color: var(--accent);
+  background: var(--surface-hover);
+  border-radius: 4px;
 }
 
 .drag-handle:hover {
@@ -369,7 +374,7 @@ body {
 }
 
 .edit-form-actions button[type='submit']:hover {
-  background: var(--accent-hover);
+  background: var(--accent-solid-hover);
 }
 
 .sr-only {
