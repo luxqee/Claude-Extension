@@ -36,8 +36,8 @@ describe('ToolService', () => {
   })
 
   it('lists buttons sorted by order', async () => {
-    await storage.saveButton({ id: 'b', name: 'B', order: 1, prompt: 'b' })
-    await storage.saveButton({ id: 'a', name: 'A', order: 0, prompt: 'a' })
+    await storage.saveButton({ id: 'b', name: 'B', order: 1, prompt: 'b', type: 'prompt' })
+    await storage.saveButton({ id: 'a', name: 'A', order: 0, prompt: 'a', type: 'prompt' })
     const buttons = await service.listButtons()
     expect(buttons.map((b) => b.id)).toEqual(['a', 'b'])
   })
