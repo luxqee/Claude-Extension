@@ -83,6 +83,6 @@ describe('isInputEmpty', () => {
   })
 
   it('returns true for null textContent', () => {
-    expect(isInputEmpty({ textContent: null })).toBe(true)
+    expect(isInputEmpty({ textContent: null } as unknown as Pick<HTMLElement, 'textContent'>)).toBe(true)
   })
 })
