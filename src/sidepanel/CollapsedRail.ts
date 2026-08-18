@@ -1,12 +1,8 @@
-import type { Button } from '../shared/types'
 import type { UsageSnapshot, UsageMeter } from '../shared/usage'
-import type { RunState } from './render'
 import { severityClass } from './UsageCard'
 
 export interface CollapsedRailContext {
-  onToggleCollapse: () => void
   onRefreshUsage: () => void
-  onRun: (button: Button) => void
 }
 
 const RING_RADIUS = 16
@@ -54,12 +50,7 @@ function renderRing(meter: UsageMeter): HTMLElement {
   return wrap
 }
 
-export function renderCollapsedRail(
-  buttons: Button[],
-  usage: UsageSnapshot | null,
-  runState: Map<string, RunState>,
-  context: CollapsedRailContext,
-): HTMLElement {
+export function renderCollapsedRail(usage: UsageSnapshot | null, context: CollapsedRailContext): HTMLElement {
   const rail = document.createElement('div')
   rail.className = 'rail'
 
@@ -78,48 +69,6 @@ export function renderCollapsedRail(
       rings.appendChild(renderRing(meter))
     })
     rail.appendChild(rings)
-  }
-
-  const expandButton = document.createElement('button')
-  expandButton.type = 'button'
-  expandButton.className = 'rail-expand'
-  expandButton.textContent = '→'
-  expandButton.setAttribute('aria-label', 'Expand sidebar')
-  expandButton.addEventListener('click', context.onToggleCollapse)
-  rail.appendChild(expandButton)
-
-  if (buttons.length > 0) {
-    const divider = document.createElement('div')
-    divider.className = 'rail-divider'
-    rail.appendChild(divider)
-
-    const buttonList = document.createElement('div')
-    buttonList.className = 'rail-buttons'
-    buttons.forEach((button) => {
-      const state = runState.get(button.id)
-      const icon = document.createElement('button')
-      icon.type = 'button'
-      icon.className = 'rail-btn-icon'
-      icon.textContent = button.name.trim().charAt(0).toUpperCase() || '?'
-      icon.disabled = state?.isRunning ?? false
-      icon.setAttribute('aria-label', `Run ${button.name}`)
-      icon.addEventListener('click', () => context.onRun(button))
-      if (state?.error) {
-        icon.classList.add('rail-btn-icon-error')
-        icon.title = `${button.name} — ${state.error}`
-      } else {
-        icon.title = button.name
-      }
-      if (button.type === 'skill') {
-        const dot = document.createElement('span')
-        dot.className = 'rail-skill-dot'
-        dot.textContent = '/'
-        dot.setAttribute('aria-hidden', 'true')
-        icon.appendChild(dot)
-      }
-      buttonList.appendChild(icon)
-    })
-    rail.appendChild(buttonList)
   }
 
   const spacer = document.createElement('div')

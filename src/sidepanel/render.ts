@@ -57,6 +57,16 @@ export function withSwappedAdjacent(ids: string[], id: string, direction: 'up' |
   return next
 }
 
+function renderEdgeToggle(collapsed: boolean, onToggleCollapse: () => void): HTMLElement {
+  const button = document.createElement('button')
+  button.type = 'button'
+  button.className = 'edge-toggle'
+  button.textContent = collapsed ? '›' : '‹'
+  button.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar')
+  button.addEventListener('click', onToggleCollapse)
+  return button
+}
+
 export function renderApp(
   root: HTMLElement,
   buttons: Button[],
@@ -88,25 +98,15 @@ export function renderApp(
   }
 
   if (collapsed) {
-    root.appendChild(
-      renderCollapsedRail(buttons, usage, runState, {
-        onToggleCollapse: context.onToggleCollapse,
-        onRefreshUsage: context.onRefreshUsage,
-        onRun: context.onRun,
-      }),
-    )
+    root.appendChild(renderCollapsedRail(usage, { onRefreshUsage: context.onRefreshUsage }))
+    root.appendChild(renderEdgeToggle(true, context.onToggleCollapse))
     return
   }
 
+  root.appendChild(renderEdgeToggle(false, context.onToggleCollapse))
+
   const header = document.createElement('div')
   header.className = 'toolbar'
-  const collapseButton = document.createElement('button')
-  collapseButton.type = 'button'
-  collapseButton.className = 'icon-button'
-  collapseButton.textContent = '⇤'
-  collapseButton.setAttribute('aria-label', 'Collapse sidebar')
-  collapseButton.addEventListener('click', context.onToggleCollapse)
-  header.appendChild(collapseButton)
   const settingsButton = document.createElement('button')
   settingsButton.type = 'button'
   settingsButton.className = 'icon-button settings-button'
