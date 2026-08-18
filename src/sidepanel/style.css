@@ -588,6 +588,10 @@ body {
   cursor: default;
 }
 
+.rail-btn-icon-error {
+  border-color: var(--danger);
+}
+
 .rail-skill-dot {
   position: absolute;
   bottom: -2px;

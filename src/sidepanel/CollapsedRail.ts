@@ -1,5 +1,5 @@
 import type { Button } from '../shared/types'
-import type { UsageSnapshot } from '../shared/usage'
+import type { UsageSnapshot, UsageMeter } from '../shared/usage'
 import type { RunState } from './render'
 import { severityClass } from './UsageCard'
 
@@ -13,9 +13,16 @@ const RING_RADIUS = 16
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
-function renderRing(percent: number, severity: string): HTMLElement {
+function renderRing(meter: UsageMeter): HTMLElement {
   const wrap = document.createElement('div')
   wrap.className = 'ring'
+  wrap.setAttribute('role', 'img')
+
+  const clamped = Math.min(100, Math.max(0, meter.percent))
+  const roundedPct = Math.round(clamped)
+  const accessibleName = `${meter.label}: ${roundedPct}%`
+  wrap.title = accessibleName
+  wrap.setAttribute('aria-label', accessibleName)
 
   const svg = document.createElementNS(SVG_NS, 'svg')
   svg.setAttribute('viewBox', '0 0 40 40')
@@ -27,10 +34,9 @@ function renderRing(percent: number, severity: string): HTMLElement {
   track.setAttribute('r', String(RING_RADIUS))
   svg.appendChild(track)
 
-  const clamped = Math.min(100, Math.max(0, percent))
   const offset = RING_CIRCUMFERENCE - (clamped / 100) * RING_CIRCUMFERENCE
   const fill = document.createElementNS(SVG_NS, 'circle')
-  fill.setAttribute('class', `fill ${severityClass(severity)}`)
+  fill.setAttribute('class', `fill ${severityClass(meter.severity)}`)
   fill.setAttribute('cx', '20')
   fill.setAttribute('cy', '20')
   fill.setAttribute('r', String(RING_RADIUS))
@@ -42,7 +48,7 @@ function renderRing(percent: number, severity: string): HTMLElement {
 
   const pct = document.createElement('span')
   pct.className = 'pct'
-  pct.textContent = `${Math.round(clamped)}%`
+  pct.textContent = `${roundedPct}%`
   wrap.appendChild(pct)
 
   return wrap
@@ -69,7 +75,7 @@ export function renderCollapsedRail(
     const rings = document.createElement('div')
     rings.className = 'rail-rings'
     usage.meters.forEach((meter) => {
-      rings.appendChild(renderRing(meter.percent, meter.severity))
+      rings.appendChild(renderRing(meter))
     })
     rail.appendChild(rings)
   }
@@ -90,14 +96,20 @@ export function renderCollapsedRail(
     const buttonList = document.createElement('div')
     buttonList.className = 'rail-buttons'
     buttons.forEach((button) => {
+      const state = runState.get(button.id)
       const icon = document.createElement('button')
       icon.type = 'button'
       icon.className = 'rail-btn-icon'
       icon.textContent = button.name.trim().charAt(0).toUpperCase() || '?'
-      icon.title = button.name
-      icon.disabled = runState.get(button.id)?.isRunning ?? false
+      icon.disabled = state?.isRunning ?? false
       icon.setAttribute('aria-label', `Run ${button.name}`)
       icon.addEventListener('click', () => context.onRun(button))
+      if (state?.error) {
+        icon.classList.add('rail-btn-icon-error')
+        icon.title = `${button.name} — ${state.error}`
+      } else {
+        icon.title = button.name
+      }
       if (button.type === 'skill') {
         const dot = document.createElement('span')
         dot.className = 'rail-skill-dot'

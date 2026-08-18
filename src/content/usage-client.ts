@@ -15,7 +15,7 @@ export async function fetchUsage(): Promise<GetUsageResponse> {
 
   let response: Response
   try {
-    response = await fetch(`https://claude.ai/api/organizations/${orgId}/usage`, {
+    response = await fetch(`https://claude.ai/api/organizations/${encodeURIComponent(orgId)}/usage`, {
       credentials: 'include',
     })
   } catch (error) {
