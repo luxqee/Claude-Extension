@@ -25,14 +25,26 @@ function syncAllTabs(): void {
     })
 }
 
+function disableGlobalPanel(): void {
+  // Suppresses the manifest's default_path from acting as an always-on
+  // fallback for tabs that haven't been explicitly synced yet, so the
+  // per-tab enable/disable below (not the manifest default) is the only
+  // thing that determines whether the panel shows for a given tab.
+  chrome.sidePanel.setOptions({ enabled: false }).catch((error) => {
+    console.error('[Claude Tools] failed to disable global side panel state', error)
+  })
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => {
     console.error('[Claude Tools] failed to set side panel behavior', error)
   })
+  disableGlobalPanel()
   syncAllTabs()
 })
 
 chrome.runtime.onStartup.addListener(() => {
+  disableGlobalPanel()
   syncAllTabs()
 })
 
