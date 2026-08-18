@@ -42,30 +42,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return
   }
 
-  const orgs = (await sql`SELECT id, name, domain FROM organizations`) as OrgRow[]
-  const orgId = resolveOrgId(email, orgs)
+  try {
+    const orgs = (await sql`SELECT id, name, domain FROM organizations`) as OrgRow[]
+    const orgId = resolveOrgId(email, orgs)
 
-  if (!orgId) {
-    res.status(200).json({ org: null, prompts: [] })
-    return
+    if (!orgId) {
+      res.status(200).json({ org: null, prompts: [] })
+      return
+    }
+
+    const org = orgs.find((candidate) => candidate.id === orgId)
+    if (!org) {
+      // resolveOrgId only returns ids present in `orgs`, so this is unreachable
+      // in practice -- guarding anyway rather than asserting with `!`.
+      res.status(200).json({ org: null, prompts: [] })
+      return
+    }
+
+    const results = await sql.transaction([
+      sql`SELECT set_config('app.current_org_id', ${orgId}, true)`,
+      sql`SELECT name, prompt_text, type FROM prompts`,
+    ])
+    const prompts = results[1] as PromptRow[]
+
+    res.status(200).json({
+      org: { name: org.name },
+      prompts: prompts.map((p) => ({ name: p.name, prompt_text: p.prompt_text, type: p.type })),
+    })
+  } catch (error) {
+    console.error('[org-prompts] database query failed', error)
+    res.status(500).json({ error: 'internal error' })
   }
-
-  const org = orgs.find((candidate) => candidate.id === orgId)
-  if (!org) {
-    // resolveOrgId only returns ids present in `orgs`, so this is unreachable
-    // in practice -- guarding anyway rather than asserting with `!`.
-    res.status(200).json({ org: null, prompts: [] })
-    return
-  }
-
-  const results = await sql.transaction([
-    sql`SET LOCAL app.current_org_id = ${orgId}`,
-    sql`SELECT name, prompt_text, type FROM prompts`,
-  ])
-  const prompts = results[1] as PromptRow[]
-
-  res.status(200).json({
-    org: { name: org.name },
-    prompts: prompts.map((p) => ({ name: p.name, prompt_text: p.prompt_text, type: p.type })),
-  })
 }
