@@ -1,7 +1,9 @@
 import type { Button, ButtonType } from '../shared/types'
+import type { UsageSnapshot } from '../shared/usage'
 import { renderButtonRow } from './ButtonRow'
 import { renderEditForm } from './EditForm'
 import { renderSettingsPanel } from './SettingsPanel'
+import { renderUsageCard } from './UsageCard'
 
 export type View = { mode: 'list' } | { mode: 'form'; button: Button | null } | { mode: 'settings' }
 
@@ -58,6 +60,7 @@ export function renderApp(
   view: View,
   runState: Map<string, RunState>,
   settingsState: SettingsState,
+  usage: UsageSnapshot | null,
   context: RenderContext,
 ): void {
   root.innerHTML = ''
@@ -96,6 +99,10 @@ export function renderApp(
   addButton.addEventListener('click', context.onAddClick)
   header.appendChild(addButton)
   root.appendChild(header)
+
+  if (usage && usage.meters.length > 0) {
+    root.appendChild(renderUsageCard(usage))
+  }
 
   if (buttons.length === 0) {
     const empty = document.createElement('p')

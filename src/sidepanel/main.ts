@@ -9,7 +9,8 @@ import {
   type SettingsState,
 } from './render'
 import type { Button } from '../shared/types'
-import type { InsertPromptRequest, InsertPromptResponse } from '../shared/messages'
+import type { InsertPromptRequest, InsertPromptResponse, GetUsageRequest, GetUsageResponse } from '../shared/messages'
+import type { UsageSnapshot } from '../shared/usage'
 import { parseImportedButtons, serializeButtons } from '../shared/backup'
 
 const toolService = new ToolService(new ChromeLocalStorageAdapter())
@@ -20,6 +21,7 @@ if (!root) {
 }
 
 let view: View = { mode: 'list' }
+let usage: UsageSnapshot | null = null
 const runState = new Map<string, RunState>()
 const settingsState: SettingsState = { error: null, successCount: null }
 let focusHandleId: string | null = null
@@ -37,10 +39,26 @@ function announce(message: string): void {
   if (region) region.textContent = message
 }
 
+async function refreshUsage(root: HTMLElement): Promise<void> {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    if (!tab?.id) return
+    const request: GetUsageRequest = { type: 'GET_USAGE' }
+    const response = await chrome.tabs.sendMessage<GetUsageRequest, GetUsageResponse>(tab.id, request)
+    if (response.ok) {
+      usage = response.usage
+      if (view.mode === 'list') await refresh(root)
+    }
+  } catch (error) {
+    console.error('[Claude Tools] failed to fetch usage', error)
+    // Supplementary data only — leave `usage` as its last-known value, no error surfaced.
+  }
+}
+
 async function refresh(root: HTMLElement): Promise<void> {
   try {
     const buttons = await toolService.listButtons()
-    renderApp(root, buttons, view, runState, settingsState, {
+    renderApp(root, buttons, view, runState, settingsState, usage, {
       onRun: async (button: Button) => {
         const alreadyRunning = [...runState.values()].some((state) => state.isRunning)
         if (alreadyRunning) return
@@ -80,6 +98,7 @@ async function refresh(root: HTMLElement): Promise<void> {
             runState.set(button.id, { isRunning: false, error: response.message })
             announce(response.message)
           }
+          void refreshUsage(root)
           if (view.mode === 'list') await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] unexpected error running button', error)
@@ -233,3 +252,4 @@ async function refresh(root: HTMLElement): Promise<void> {
 }
 
 void refresh(root)
+void refreshUsage(root)
