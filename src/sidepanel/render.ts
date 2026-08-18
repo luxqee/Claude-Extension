@@ -1,6 +1,7 @@
 import type { Button, ButtonType } from '../shared/types'
 import type { UsageSnapshot } from '../shared/usage'
 import { renderButtonRow } from './ButtonRow'
+import { renderCollapsedRail } from './CollapsedRail'
 import { renderEditForm } from './EditForm'
 import { renderSettingsPanel } from './SettingsPanel'
 import { renderUsageCard } from './UsageCard'
@@ -30,6 +31,8 @@ export interface RenderContext {
   onExport: () => void
   onImport: (file: File) => void
   onSettingsBack: () => void
+  onToggleCollapse: () => void
+  onRefreshUsage: () => void
 }
 
 export function withMovedId(
@@ -61,6 +64,7 @@ export function renderApp(
   runState: Map<string, RunState>,
   settingsState: SettingsState,
   usage: UsageSnapshot | null,
+  collapsed: boolean,
   context: RenderContext,
 ): void {
   root.innerHTML = ''
@@ -83,8 +87,26 @@ export function renderApp(
     return
   }
 
+  if (collapsed) {
+    root.appendChild(
+      renderCollapsedRail(buttons, usage, runState, {
+        onToggleCollapse: context.onToggleCollapse,
+        onRefreshUsage: context.onRefreshUsage,
+        onRun: context.onRun,
+      }),
+    )
+    return
+  }
+
   const header = document.createElement('div')
   header.className = 'toolbar'
+  const collapseButton = document.createElement('button')
+  collapseButton.type = 'button'
+  collapseButton.className = 'icon-button'
+  collapseButton.textContent = '⇤'
+  collapseButton.setAttribute('aria-label', 'Collapse sidebar')
+  collapseButton.addEventListener('click', context.onToggleCollapse)
+  header.appendChild(collapseButton)
   const settingsButton = document.createElement('button')
   settingsButton.type = 'button'
   settingsButton.className = 'icon-button settings-button'

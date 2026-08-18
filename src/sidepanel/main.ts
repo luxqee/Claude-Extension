@@ -12,16 +12,20 @@ import type { Button } from '../shared/types'
 import type { InsertPromptRequest, InsertPromptResponse, GetUsageRequest, GetUsageResponse } from '../shared/messages'
 import type { UsageSnapshot } from '../shared/usage'
 import { parseImportedButtons, serializeButtons } from '../shared/backup'
+import { getSidebarCollapsed, setSidebarCollapsed } from '../shared/preferences'
 
 const toolService = new ToolService(new ChromeLocalStorageAdapter())
-const root = document.getElementById('app')
+const rootElement = document.getElementById('app')
 
-if (!root) {
+if (!rootElement) {
   throw new Error('[Claude Tools] sidepanel root element (#app) is missing')
 }
 
+const root: HTMLElement = rootElement
+
 let view: View = { mode: 'list' }
 let usage: UsageSnapshot | null = null
+let collapsed = false
 const runState = new Map<string, RunState>()
 const settingsState: SettingsState = { error: null, successCount: null }
 let focusHandleId: string | null = null
@@ -58,7 +62,7 @@ async function refreshUsage(root: HTMLElement): Promise<void> {
 async function refresh(root: HTMLElement): Promise<void> {
   try {
     const buttons = await toolService.listButtons()
-    renderApp(root, buttons, view, runState, settingsState, usage, {
+    renderApp(root, buttons, view, runState, settingsState, usage, collapsed, {
       onRun: async (button: Button) => {
         const alreadyRunning = [...runState.values()].some((state) => state.isRunning)
         if (alreadyRunning) return
@@ -239,6 +243,14 @@ async function refresh(root: HTMLElement): Promise<void> {
         view = { mode: 'list' }
         void refresh(root)
       },
+      onToggleCollapse: () => {
+        collapsed = !collapsed
+        void setSidebarCollapsed(collapsed)
+        void refresh(root)
+      },
+      onRefreshUsage: () => {
+        void refreshUsage(root)
+      },
     })
     if (focusHandleId) {
       const handles = Array.from(root.querySelectorAll<HTMLElement>('.drag-handle'))
@@ -251,5 +263,10 @@ async function refresh(root: HTMLElement): Promise<void> {
   }
 }
 
-void refresh(root)
-void refreshUsage(root)
+async function start(): Promise<void> {
+  collapsed = await getSidebarCollapsed()
+  await refresh(root)
+  void refreshUsage(root)
+}
+
+void start()
