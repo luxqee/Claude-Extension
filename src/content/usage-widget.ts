@@ -12,7 +12,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg'
 const WIDGET_CSS = `
 #${WIDGET_ID} {
   margin: 10px 8px 8px;
-  padding: 10px 10px 8px;
+  padding: 10px 10px 14px;
   border-radius: 10px;
   background: #131210;
   border: 1px solid #262420;
