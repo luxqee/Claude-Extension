@@ -1,12 +1,14 @@
 import { parseUsageResponse } from '../shared/usage'
-import type { GetUsageResponse } from '../shared/messages'
+import type { UsageSnapshot } from '../shared/usage'
+
+export type FetchUsageResult = { ok: true; usage: UsageSnapshot } | { ok: false }
 
 function readCookie(name: string): string | null {
   const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
   return match ? decodeURIComponent(match[1]) : null
 }
 
-export async function fetchUsage(): Promise<GetUsageResponse> {
+export async function fetchUsage(): Promise<FetchUsageResult> {
   const orgId = readCookie('lastActiveOrg')
   if (!orgId) {
     console.warn('[Claude Tools] no lastActiveOrg cookie found; cannot fetch usage')

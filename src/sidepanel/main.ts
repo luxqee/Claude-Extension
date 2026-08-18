@@ -9,10 +9,8 @@ import {
   type SettingsState,
 } from './render'
 import type { Button } from '../shared/types'
-import type { InsertPromptRequest, InsertPromptResponse, GetUsageRequest, GetUsageResponse } from '../shared/messages'
-import type { UsageSnapshot } from '../shared/usage'
+import type { InsertPromptRequest, InsertPromptResponse } from '../shared/messages'
 import { parseImportedButtons, serializeButtons } from '../shared/backup'
-import { getSidebarCollapsed, setSidebarCollapsed } from '../shared/preferences'
 
 const toolService = new ToolService(new ChromeLocalStorageAdapter())
 const rootElement = document.getElementById('app')
@@ -24,8 +22,6 @@ if (!rootElement) {
 const root: HTMLElement = rootElement
 
 let view: View = { mode: 'list' }
-let usage: UsageSnapshot | null = null
-let collapsed = false
 const runState = new Map<string, RunState>()
 const settingsState: SettingsState = { error: null, successCount: null }
 let focusHandleId: string | null = null
@@ -43,26 +39,10 @@ function announce(message: string): void {
   if (region) region.textContent = message
 }
 
-async function refreshUsage(root: HTMLElement): Promise<void> {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-    if (!tab?.id) return
-    const request: GetUsageRequest = { type: 'GET_USAGE' }
-    const response = await chrome.tabs.sendMessage<GetUsageRequest, GetUsageResponse>(tab.id, request)
-    if (response.ok) {
-      usage = response.usage
-      if (view.mode === 'list') await refresh(root)
-    }
-  } catch (error) {
-    console.error('[Claude Tools] failed to fetch usage', error)
-    // Supplementary data only — leave `usage` as its last-known value, no error surfaced.
-  }
-}
-
 async function refresh(root: HTMLElement): Promise<void> {
   try {
     const buttons = await toolService.listButtons()
-    renderApp(root, buttons, view, runState, settingsState, usage, collapsed, {
+    renderApp(root, buttons, view, runState, settingsState, {
       onRun: async (button: Button) => {
         const alreadyRunning = [...runState.values()].some((state) => state.isRunning)
         if (alreadyRunning) return
@@ -102,7 +82,6 @@ async function refresh(root: HTMLElement): Promise<void> {
             runState.set(button.id, { isRunning: false, error: response.message })
             announce(response.message)
           }
-          void refreshUsage(root)
           if (view.mode === 'list') await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] unexpected error running button', error)
@@ -243,14 +222,6 @@ async function refresh(root: HTMLElement): Promise<void> {
         view = { mode: 'list' }
         void refresh(root)
       },
-      onToggleCollapse: () => {
-        collapsed = !collapsed
-        void setSidebarCollapsed(collapsed)
-        void refresh(root)
-      },
-      onRefreshUsage: () => {
-        void refreshUsage(root)
-      },
     })
     if (focusHandleId) {
       const handles = Array.from(root.querySelectorAll<HTMLElement>('.drag-handle'))
@@ -263,10 +234,4 @@ async function refresh(root: HTMLElement): Promise<void> {
   }
 }
 
-async function start(): Promise<void> {
-  collapsed = await getSidebarCollapsed()
-  await refresh(root)
-  void refreshUsage(root)
-}
-
-void start()
+void refresh(root)

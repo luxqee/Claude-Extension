@@ -1,10 +1,7 @@
 import type { Button, ButtonType } from '../shared/types'
-import type { UsageSnapshot } from '../shared/usage'
 import { renderButtonRow } from './ButtonRow'
-import { renderCollapsedRail } from './CollapsedRail'
 import { renderEditForm } from './EditForm'
 import { renderSettingsPanel } from './SettingsPanel'
-import { renderUsageCard } from './UsageCard'
 
 export type View = { mode: 'list' } | { mode: 'form'; button: Button | null } | { mode: 'settings' }
 
@@ -31,8 +28,6 @@ export interface RenderContext {
   onExport: () => void
   onImport: (file: File) => void
   onSettingsBack: () => void
-  onToggleCollapse: () => void
-  onRefreshUsage: () => void
 }
 
 export function withMovedId(
@@ -57,24 +52,12 @@ export function withSwappedAdjacent(ids: string[], id: string, direction: 'up' |
   return next
 }
 
-function renderEdgeToggle(collapsed: boolean, onToggleCollapse: () => void): HTMLElement {
-  const button = document.createElement('button')
-  button.type = 'button'
-  button.className = 'edge-toggle'
-  button.textContent = collapsed ? '›' : '‹'
-  button.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar')
-  button.addEventListener('click', onToggleCollapse)
-  return button
-}
-
 export function renderApp(
   root: HTMLElement,
   buttons: Button[],
   view: View,
   runState: Map<string, RunState>,
   settingsState: SettingsState,
-  usage: UsageSnapshot | null,
-  collapsed: boolean,
   context: RenderContext,
 ): void {
   root.innerHTML = ''
@@ -97,14 +80,6 @@ export function renderApp(
     return
   }
 
-  if (collapsed) {
-    root.appendChild(renderCollapsedRail(usage, { onRefreshUsage: context.onRefreshUsage }))
-    root.appendChild(renderEdgeToggle(true, context.onToggleCollapse))
-    return
-  }
-
-  root.appendChild(renderEdgeToggle(false, context.onToggleCollapse))
-
   const header = document.createElement('div')
   header.className = 'toolbar'
   const settingsButton = document.createElement('button')
@@ -121,10 +96,6 @@ export function renderApp(
   addButton.addEventListener('click', context.onAddClick)
   header.appendChild(addButton)
   root.appendChild(header)
-
-  if (usage && usage.meters.length > 0) {
-    root.appendChild(renderUsageCard(usage))
-  }
 
   if (buttons.length === 0) {
     const empty = document.createElement('p')
