@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/org-prompts.ts": {
+      "runtime": "nodejs20.x"
+    }
+  }
+}
