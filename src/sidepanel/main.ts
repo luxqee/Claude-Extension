@@ -142,6 +142,7 @@ async function refreshOrgPrompts(root: HTMLElement): Promise<void> {
   if (!idToken) return
   const result = await loadOrgPrompts(idToken)
   orgPrompts = result.prompts
+  teamPrompts = result
   if (view.mode === 'manage-org') await refresh(root)
 }
 
