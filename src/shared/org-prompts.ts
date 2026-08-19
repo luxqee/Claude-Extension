@@ -9,7 +9,7 @@ export interface OrgPromptsResult {
   prompts: OrgPrompt[]
 }
 
-const API_BASE_URL = 'https://claude-extension-git-main-luxqees-projects.vercel.app'
+export const API_BASE_URL = 'https://claude-extension-git-main-luxqees-projects.vercel.app'
 const CACHE_STORAGE_KEY = 'orgPromptsCache'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
