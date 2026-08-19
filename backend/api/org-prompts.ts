@@ -1,14 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { OAuth2Client } from 'google-auth-library'
 import { neon } from '@neondatabase/serverless'
-import { resolveOrgId, type OrgRecord } from '../lib/resolve-org.js'
 import { resolveDirectorContext } from '../lib/require-director.js'
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID ?? ''
 const sql = neon(process.env.DATABASE_URL ?? '')
 const oauthClient = new OAuth2Client(GOOGLE_CLIENT_ID)
 
-interface OrgRow extends OrgRecord {
+interface OrgRow {
+  id: string
   name: string
 }
 
@@ -87,18 +87,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   try {
-    const orgs = (await sql`SELECT id, name, domain FROM organizations`) as OrgRow[]
-    const orgId = resolveOrgId(email, orgs)
+    // Resolve the caller's org from their real membership, NOT from
+    // email-domain matching. Organizations no longer have a unique domain
+    // (public/consumer domains are legitimately shared by many unrelated
+    // orgs), and org-members-add deliberately supports members at any
+    // domain, so domain matching could return an org the caller is not a
+    // member of. This mirrors org-session.ts's membership lookup, and uses
+    // the same oldest-membership-wins ordering so the org a member reads
+    // prompts from is always the org their session resolves to.
+    const memberRows = (await sql`
+      SELECT org_id FROM org_members
+      WHERE lower(email) = lower(${email}) AND status = 'active'
+      ORDER BY created_at ASC LIMIT 1
+    `) as { org_id: string }[]
+    const orgId = memberRows[0]?.org_id
 
     if (!orgId) {
       res.status(200).json({ org: null, prompts: [] })
       return
     }
 
-    const org = orgs.find((candidate) => candidate.id === orgId)
+    const orgRows = (await sql`SELECT id, name FROM organizations WHERE id = ${orgId}`) as OrgRow[]
+    const org = orgRows[0]
     if (!org) {
-      // resolveOrgId only returns ids present in `orgs`, so this is unreachable
-      // in practice -- guarding anyway rather than asserting with `!`.
+      // org_members.org_id is a foreign key, so this is unreachable in
+      // practice -- guarding anyway rather than asserting with `!`.
       res.status(200).json({ org: null, prompts: [] })
       return
     }
