@@ -8,6 +8,11 @@
 -- over:
 --   alter table organizations drop constraint organizations_domain_key;
 -- then paste in everything below the `create table org_members` line.
+--
+-- If you already applied an earlier version of this file with the old
+-- org_members_isolation SELECT policy (org_id-scoped), fix it in place:
+--   drop policy org_members_isolation on org_members;
+--   create policy org_members_isolation on org_members for select using (true);
 
 create table organizations (
   id uuid primary key default gen_random_uuid(),
@@ -70,9 +75,22 @@ create table org_members (
 alter table org_members enable row level security;
 alter table org_members force row level security;
 
+-- Deliberately unconditional, matching org_members_insert below and this
+-- project's established reasoning for prompts' own insert policy: RLS has
+-- no way to verify which end-user identity a query is acting on -- only
+-- the API layer can, via a verified Google ID token, and every read of
+-- this table already derives its own authorization from that (a caller's
+-- own verified email for self-lookups, or an already-authorized org_id
+-- for roster listings). An org_id-scoped SELECT policy here is not just
+-- unhelpful but actively breaks the product: several call sites query
+-- org_members BY EMAIL specifically to discover which org someone
+-- belongs to, and cannot know org_id in advance -- finding it out is the
+-- entire point of the query. A scoped policy makes every such lookup
+-- return zero rows unconditionally, since the session variable it
+-- requires can never be set before the org_id it would need is known.
 create policy org_members_isolation on org_members
   for select
-  using (org_id = current_setting('app.current_org_id', true)::uuid);
+  using (true);
 
 create policy org_members_insert on org_members
   for insert
