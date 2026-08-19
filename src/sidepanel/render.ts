@@ -190,7 +190,15 @@ export function renderApp(
     banner.className = 'org-pending-banner'
     banner.textContent = "You're signed in. Waiting for a director to approve you."
     root.appendChild(banner)
-  } else if (orgSession?.state === 'active' && teamPrompts.prompts.length > 0) {
+  } else if (
+    // `orgSession === null` means unresolved -- the /api/org-session call
+    // never came back (offline, backend down), which is different from a
+    // resolved non-active state. In that case fall back to whatever
+    // loadOrgPrompts recovered from its local cache, so the Team section
+    // stays usable offline instead of vanishing.
+    (orgSession?.state === 'active' || orgSession === null) &&
+    teamPrompts.prompts.length > 0
+  ) {
     root.appendChild(
       renderTeamSection(teamPrompts.orgName ?? 'Team', teamPrompts.prompts, context.onRunTeamPrompt),
     )

@@ -14,6 +14,7 @@ import type { InsertPromptRequest, InsertPromptResponse, GetUsageRequest, GetUsa
 import { parseImportedButtons, serializeButtons } from '../shared/backup'
 import {
   loadOrgPrompts,
+  getCachedOrgPrompts,
   clearCachedOrgPrompts,
   createOrgPrompt,
   updateOrgPrompt,
@@ -85,8 +86,14 @@ async function resolveOrgSession(root: HTMLElement): Promise<void> {
       await clearCachedOrgPrompts()
       announce('Please sign in again to see your organisation.')
     }
+    // The org session is unresolved, not resolved-inactive: a token refresh
+    // can fail transiently (offline). Keep any cached team prompts so the
+    // Team section survives. If the session actually ended above the cache
+    // was just cleared, so `cached` is null and the section disappears.
+    const cached = session ? await getCachedOrgPrompts() : null
+    if (session !== startedForSession) return
     orgSession = null
-    teamPrompts = { orgName: null, prompts: [] }
+    teamPrompts = cached ?? { orgName: null, prompts: [] }
     stopUsageReportTimer()
     if (view.mode === 'list') await refresh(root)
     return
@@ -107,6 +114,14 @@ async function resolveOrgSession(root: HTMLElement): Promise<void> {
     if (session !== startedForSession) return
     teamPrompts = result
     startUsageReportTimer()
+  } else if (resolution === null) {
+    // Same unresolved case as above: /api/org-session was unreachable. Fall
+    // back to the cache rather than clearing, matching the pre-Phase-2D
+    // behaviour where the Team section came straight from loadOrgPrompts.
+    const cached = await getCachedOrgPrompts()
+    if (session !== startedForSession) return
+    teamPrompts = cached ?? { orgName: null, prompts: [] }
+    stopUsageReportTimer()
   } else {
     teamPrompts = { orgName: null, prompts: [] }
     stopUsageReportTimer()
