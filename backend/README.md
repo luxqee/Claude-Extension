@@ -40,8 +40,24 @@ starting fresh, first run:
 alter table organizations drop constraint organizations_domain_key;
 ```
 
-then apply everything from `create table org_members` onward in
-`schema.sql`.
+then apply everything from the `create policy org_update on prompts` line
+onward in `schema.sql`. Start at that line, **not** at
+`create table org_members`: `prompts` is under
+`force row level security`, and RLS default-denies any command with no
+matching policy, so skipping the `org_update`/`org_delete` policies makes
+every director prompt edit and delete match zero rows and silently do
+nothing.
+
+If you already applied an earlier version of this phase's `schema.sql`
+that had the case-sensitive `unique (org_id, email)` constraint on
+`org_members`, replace it with the case-insensitive index (delete any
+rows that differ only by email case first):
+
+```sql
+update org_members set email = lower(email) where email <> lower(email);
+alter table org_members drop constraint org_members_org_id_email_key;
+create unique index org_members_org_email_key on org_members (org_id, lower(email));
+```
 
 Organizations, membership, and prompts are now created and managed
 through the API (`POST /api/org-onboarding`, the `org_members` and
@@ -81,7 +97,7 @@ GET /api/org-prompts
 Authorization: Bearer <google-id-token>
 
 200 -> { "org": { "name": "Acme" }, "prompts": [ { "name": "...", "prompt_text": "...", "type": "prompt" } ] }
-200 -> { "org": null, "prompts": [] }   // token verifies, but no org matches the domain yet
+200 -> { "org": null, "prompts": [] }   // token verifies, but the caller has no active org_members row
 401 -> token missing or invalid
 ```
 
@@ -113,7 +129,7 @@ Authorization: Bearer <google-id-token>
 200 -> { "members": [ { "email", "role", "status", "createdAt" } ] }
 403 -> caller is not an active director
 
-POST /api/org-members-approve   { "email": "..." }        (director-only) -> 204
+POST /api/org-members-approve   { "email": "..." }        (director-only) -> 204 | 404 (not in this org)
 POST /api/org-members-remove    { "email": "..." }        (director-only) -> 204 | 400 (last director)
 POST /api/org-members-add       { "email": "..." }        (director-only) -> 204
 POST /api/org-members-set-role  { "email": "...", "role": "director" | "member" }  (director-only) -> 204 | 400 (last director)
@@ -121,8 +137,8 @@ POST /api/org-members-set-role  { "email": "...", "role": "director" | "member" 
 
 ```
 POST   /api/org-prompts        { "name", "promptText", "type" }         (director-only) -> 201
-PATCH  /api/org-prompts/:id    { "name"?, "promptText"?, "type"? }        (director-only) -> 204
-DELETE /api/org-prompts/:id                                               (director-only) -> 204
+PATCH  /api/org-prompts/:id    { "name"?, "promptText"?, "type"? }        (director-only) -> 204 | 404 (not in this org)
+DELETE /api/org-prompts/:id                                               (director-only) -> 204 | 404 (not in this org)
 ```
 
 ```

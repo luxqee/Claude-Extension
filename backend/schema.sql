@@ -7,12 +7,26 @@
 -- earlier), run this instead to migrate in place rather than starting
 -- over:
 --   alter table organizations drop constraint organizations_domain_key;
--- then paste in everything below the `create table org_members` line.
+-- then paste in everything from the `create policy org_update on prompts`
+-- line onward. Start there, NOT at `create table org_members`: prompts is
+-- under FORCE ROW LEVEL SECURITY and RLS default-denies any command that
+-- has no matching policy, so skipping the org_update/org_delete policies
+-- would make every director prompt edit and delete match zero rows and
+-- silently do nothing.
 --
 -- If you already applied an earlier version of this file with the old
 -- org_members_isolation SELECT policy (org_id-scoped), fix it in place:
 --   drop policy org_members_isolation on org_members;
 --   create policy org_members_isolation on org_members for select using (true);
+--
+-- If you already applied an earlier version of this file with the old
+-- case-sensitive `unique (org_id, email)` constraint on org_members,
+-- replace it with the case-insensitive index below (see the comment on
+-- that index for why). If two rows in an org differ only by email case,
+-- delete the redundant one before running the update:
+--   update org_members set email = lower(email) where email <> lower(email);
+--   alter table org_members drop constraint org_members_org_id_email_key;
+--   create unique index org_members_org_email_key on org_members (org_id, lower(email));
 
 create table organizations (
   id uuid primary key default gen_random_uuid(),
@@ -68,9 +82,20 @@ create table org_members (
   role text not null check (role in ('director', 'member')),
   status text not null check (status in ('pending', 'active')),
   invited_by text,
-  created_at timestamptz not null default now(),
-  unique (org_id, email)
+  created_at timestamptz not null default now()
 );
+
+-- Case-insensitive on purpose, rather than a plain `unique (org_id, email)`.
+-- Every read of this table compares with lower(email) (org-session,
+-- require-director, org-prompts, usage-report, and every members endpoint),
+-- and every write site lowercases before inserting, so the uniqueness
+-- guarantee has to be stated the same way. With a case-sensitive constraint
+-- Alice@acme.com and alice@acme.com would be two rows for one person, and
+-- since session/role resolution picks a single row per email, the duplicate
+-- could silently supersede -- and effectively demote -- the real one.
+-- ON CONFLICT clauses against this table must name the expression form
+-- (`on conflict (org_id, lower(email))`) so the inference matches this index.
+create unique index org_members_org_email_key on org_members (org_id, lower(email));
 
 alter table org_members enable row level security;
 alter table org_members force row level security;
