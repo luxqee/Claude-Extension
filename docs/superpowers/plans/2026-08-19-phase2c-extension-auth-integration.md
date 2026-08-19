@@ -668,7 +668,10 @@ Build (`pnpm run build`), reload the unpacked extension in `chrome://extensions`
 2. Create a **second** OAuth Client ID in the same Google Cloud project, this time of type **"Web application"** (not "Chrome Extension").
 3. Under that new client's "Authorized redirect URIs," add the exact URI from step 1.
 4. Copy the new Client ID and replace the `GOOGLE_CLIENT_ID` constant in `src/shared/auth/google-auth-adapter.ts` with it.
-5. Rebuild, reload the extension, and try signing in again.
+5. **Also update the backend's `GOOGLE_OAUTH_CLIENT_ID` environment variable in the Vercel project to this same new Client ID, and redeploy.** `backend/api/org-prompts.ts` verifies the ID token's `aud` claim against this env var — if it still points at the old "Chrome Extension" client ID after switching the extension to the new "Web application" client ID, every `/api/org-prompts` request will 401. That failure is silent in the UI (it degrades to the same empty state as "no org matches your domain" — see the note below), so this step is easy to miss and hard to notice went wrong.
+6. Rebuild, reload the extension, and try signing in again.
+
+**Note on a silent-failure gap this creates:** a 401 from `/api/org-prompts` (e.g. from the audience mismatch in step 5, or any other auth failure) and a legitimate "no organization matches your email's domain" both currently render as the same thing — no Team section, no error. When running this checklist, open the sidepanel's DevTools console (right-click the sidebar → Inspect) and check for `[Claude Tools] org-prompts endpoint returned status 401` (or similar) before concluding "no org set up yet" is the correct explanation for a missing Team section.
 
 Either way, once sign-in succeeds, also verify: clicking "Sign out" returns to the "Sign in with Google" state, and reopening the sidebar after a successful sign-in (without signing out) still shows "Signed in as ..." — confirming the session persisted across a reload via `getCurrentSession()`.
 
