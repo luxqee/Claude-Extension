@@ -12,6 +12,7 @@ import {
 import type { Button } from '../shared/types'
 import type { InsertPromptRequest, InsertPromptResponse } from '../shared/messages'
 import { parseImportedButtons, serializeButtons } from '../shared/backup'
+import { loadOrgPrompts, type OrgPrompt, type OrgPromptsResult } from '../shared/org-prompts'
 
 const toolService = new ToolService(new ChromeLocalStorageAdapter())
 const authAdapter = new GoogleAuthAdapter()
@@ -25,6 +26,7 @@ const root: HTMLElement = rootElement
 
 let view: View = { mode: 'list' }
 let session: { email: string } | null = null
+let teamPrompts: OrgPromptsResult = { orgName: null, prompts: [] }
 const runState = new Map<string, RunState>()
 const settingsState: SettingsState = { error: null, successCount: null }
 let focusHandleId: string | null = null
@@ -42,10 +44,30 @@ function announce(message: string): void {
   if (region) region.textContent = message
 }
 
+async function refreshTeamPrompts(root: HTMLElement): Promise<void> {
+  const idToken = await authAdapter.getValidIdToken()
+  if (!idToken) {
+    // getValidIdToken() already cleared the stored session if the silent
+    // refresh failed outright -- check whether that happened so we only
+    // prompt the user to sign in again when it's actually needed, not on
+    // every call (e.g. a call made while genuinely signed out already).
+    const stillSignedIn = await authAdapter.getCurrentSession()
+    if (session && !stillSignedIn) {
+      session = null
+      announce('Please sign in again to see your team prompts.')
+    }
+    teamPrompts = { orgName: null, prompts: [] }
+    if (view.mode === 'list') await refresh(root)
+    return
+  }
+  teamPrompts = await loadOrgPrompts(idToken)
+  if (view.mode === 'list') await refresh(root)
+}
+
 async function refresh(root: HTMLElement): Promise<void> {
   try {
     const buttons = await toolService.listButtons()
-    renderApp(root, buttons, view, runState, settingsState, session, {
+    renderApp(root, buttons, view, runState, settingsState, session, teamPrompts, {
       onRun: async (button: Button) => {
         const alreadyRunning = [...runState.values()].some((state) => state.isRunning)
         if (alreadyRunning) return
@@ -230,15 +252,50 @@ async function refresh(root: HTMLElement): Promise<void> {
         if (result) {
           session = { email: result.email }
           announce(`Signed in as ${result.email}`)
+          await refresh(root)
+          void refreshTeamPrompts(root)
         } else {
           announce('Sign in was not completed.')
+          await refresh(root)
         }
-        await refresh(root)
       },
       onSignOut: async () => {
         await authAdapter.signOut()
         session = null
+        teamPrompts = { orgName: null, prompts: [] }
         await refresh(root)
+      },
+      onRunTeamPrompt: async (prompt: OrgPrompt) => {
+        const alreadyRunning = [...runState.values()].some((state) => state.isRunning)
+        if (alreadyRunning) return
+        try {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+          if (!tab?.id || !tab.url) {
+            announce('Open claude.ai to use this tool.')
+            return
+          }
+          const request: InsertPromptRequest = { type: 'INSERT_PROMPT', prompt: prompt.promptText }
+          let response: InsertPromptResponse
+          try {
+            response = await chrome.tabs.sendMessage<InsertPromptRequest, InsertPromptResponse>(
+              tab.id,
+              request,
+            )
+          } catch (error) {
+            console.error('[Claude Tools] failed to reach content script', error)
+            announce('Reload the Claude tab and try again.')
+            return
+          }
+          if (response.ok) {
+            announce(`Inserted ${prompt.name}.`)
+          } else {
+            console.error('[Claude Tools] team prompt run failed', response.error, response.message)
+            announce(response.message)
+          }
+        } catch (error) {
+          console.error('[Claude Tools] unexpected error running team prompt', error)
+          announce('Something went wrong running that tool. Check the console for details.')
+        }
       },
     })
     if (focusHandleId) {
@@ -255,6 +312,7 @@ async function refresh(root: HTMLElement): Promise<void> {
 async function start(): Promise<void> {
   session = await authAdapter.getCurrentSession()
   await refresh(root)
+  if (session) void refreshTeamPrompts(root)
 }
 
 void start()

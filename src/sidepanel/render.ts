@@ -2,6 +2,8 @@ import type { Button, ButtonType } from '../shared/types'
 import { renderButtonRow } from './ButtonRow'
 import { renderEditForm } from './EditForm'
 import { renderSettingsPanel } from './SettingsPanel'
+import { renderTeamSection } from './TeamSection'
+import type { OrgPrompt, OrgPromptsResult } from '../shared/org-prompts'
 
 export type View = { mode: 'list' } | { mode: 'form'; button: Button | null } | { mode: 'settings' }
 
@@ -30,6 +32,7 @@ export interface RenderContext {
   onSettingsBack: () => void
   onSignIn: () => void
   onSignOut: () => void
+  onRunTeamPrompt: (prompt: OrgPrompt) => void
 }
 
 export function withMovedId(
@@ -61,6 +64,7 @@ export function renderApp(
   runState: Map<string, RunState>,
   settingsState: SettingsState,
   session: { email: string } | null,
+  teamPrompts: OrgPromptsResult,
   context: RenderContext,
 ): void {
   root.innerHTML = ''
@@ -128,4 +132,10 @@ export function renderApp(
     )
   })
   root.appendChild(list)
+
+  if (teamPrompts.prompts.length > 0) {
+    root.appendChild(
+      renderTeamSection(teamPrompts.orgName ?? 'Team', teamPrompts.prompts, context.onRunTeamPrompt),
+    )
+  }
 }
