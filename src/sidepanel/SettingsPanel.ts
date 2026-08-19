@@ -4,6 +4,9 @@ export interface SettingsPanelContext {
   onBack: () => void
   importError: string | null
   importSuccessCount: number | null
+  session: { email: string } | null
+  onSignIn: () => void
+  onSignOut: () => void
 }
 
 export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement {
@@ -14,6 +17,35 @@ export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement 
   heading.className = 'settings-heading'
   heading.textContent = 'Settings'
   container.appendChild(heading)
+
+  const authSection = document.createElement('div')
+  authSection.className = 'settings-section'
+  if (context.session) {
+    const signedInAs = document.createElement('p')
+    signedInAs.className = 'settings-hint'
+    signedInAs.textContent = `Signed in as ${context.session.email}`
+    authSection.appendChild(signedInAs)
+
+    const signOutButton = document.createElement('button')
+    signOutButton.type = 'button'
+    signOutButton.className = 'settings-action-button'
+    signOutButton.textContent = 'Sign out'
+    signOutButton.addEventListener('click', context.onSignOut)
+    authSection.appendChild(signOutButton)
+  } else {
+    const signInButton = document.createElement('button')
+    signInButton.type = 'button'
+    signInButton.className = 'settings-action-button'
+    signInButton.textContent = 'Sign in with Google'
+    signInButton.addEventListener('click', context.onSignIn)
+    authSection.appendChild(signInButton)
+
+    const signInHint = document.createElement('p')
+    signInHint.className = 'settings-hint'
+    signInHint.textContent = "See your company's shared prompts, if your organization has set them up."
+    authSection.appendChild(signInHint)
+  }
+  container.appendChild(authSection)
 
   const exportSection = document.createElement('div')
   exportSection.className = 'settings-section'

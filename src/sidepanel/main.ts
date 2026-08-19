@@ -1,5 +1,6 @@
 import { ToolService } from '../shared/tool-service'
 import { ChromeLocalStorageAdapter } from '../shared/storage/chrome-local-adapter'
+import { GoogleAuthAdapter } from '../shared/auth/google-auth-adapter'
 import {
   renderApp,
   withMovedId,
@@ -13,6 +14,7 @@ import type { InsertPromptRequest, InsertPromptResponse } from '../shared/messag
 import { parseImportedButtons, serializeButtons } from '../shared/backup'
 
 const toolService = new ToolService(new ChromeLocalStorageAdapter())
+const authAdapter = new GoogleAuthAdapter()
 const rootElement = document.getElementById('app')
 
 if (!rootElement) {
@@ -22,6 +24,7 @@ if (!rootElement) {
 const root: HTMLElement = rootElement
 
 let view: View = { mode: 'list' }
+let session: { email: string } | null = null
 const runState = new Map<string, RunState>()
 const settingsState: SettingsState = { error: null, successCount: null }
 let focusHandleId: string | null = null
@@ -42,7 +45,7 @@ function announce(message: string): void {
 async function refresh(root: HTMLElement): Promise<void> {
   try {
     const buttons = await toolService.listButtons()
-    renderApp(root, buttons, view, runState, settingsState, {
+    renderApp(root, buttons, view, runState, settingsState, session, {
       onRun: async (button: Button) => {
         const alreadyRunning = [...runState.values()].some((state) => state.isRunning)
         if (alreadyRunning) return
@@ -222,6 +225,21 @@ async function refresh(root: HTMLElement): Promise<void> {
         view = { mode: 'list' }
         void refresh(root)
       },
+      onSignIn: async () => {
+        const result = await authAdapter.signIn()
+        if (result) {
+          session = { email: result.email }
+          announce(`Signed in as ${result.email}`)
+        } else {
+          announce('Sign in was not completed.')
+        }
+        await refresh(root)
+      },
+      onSignOut: async () => {
+        await authAdapter.signOut()
+        session = null
+        await refresh(root)
+      },
     })
     if (focusHandleId) {
       const handles = Array.from(root.querySelectorAll<HTMLElement>('.drag-handle'))
@@ -234,4 +252,9 @@ async function refresh(root: HTMLElement): Promise<void> {
   }
 }
 
-void refresh(root)
+async function start(): Promise<void> {
+  session = await authAdapter.getCurrentSession()
+  await refresh(root)
+}
+
+void start()

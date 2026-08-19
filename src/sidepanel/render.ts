@@ -28,6 +28,8 @@ export interface RenderContext {
   onExport: () => void
   onImport: (file: File) => void
   onSettingsBack: () => void
+  onSignIn: () => void
+  onSignOut: () => void
 }
 
 export function withMovedId(
@@ -58,6 +60,7 @@ export function renderApp(
   view: View,
   runState: Map<string, RunState>,
   settingsState: SettingsState,
+  session: { email: string } | null,
   context: RenderContext,
 ): void {
   root.innerHTML = ''
@@ -75,6 +78,9 @@ export function renderApp(
         onBack: context.onSettingsBack,
         importError: settingsState.error,
         importSuccessCount: settingsState.successCount,
+        session,
+        onSignIn: context.onSignIn,
+        onSignOut: context.onSignOut,
       }),
     )
     return
