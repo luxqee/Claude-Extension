@@ -4,6 +4,7 @@ import { renderEditForm } from './EditForm'
 import { renderSettingsPanel } from './SettingsPanel'
 import { renderTeamSection } from './TeamSection'
 import { renderOrgOnboarding } from './OrgOnboarding'
+import { renderManageOrganisation, type ManageOrgState } from './ManageOrganisation'
 import type { OrgPrompt, OrgPromptsResult } from '../shared/org-prompts'
 import type { OrgSessionState } from '../shared/org-session'
 
@@ -12,6 +13,7 @@ export type View =
   | { mode: 'form'; button: Button | null }
   | { mode: 'settings' }
   | { mode: 'org-onboarding' }
+  | { mode: 'manage-org' }
 
 export interface RunState {
   isRunning: boolean
@@ -41,6 +43,13 @@ export interface RenderContext {
   onRunTeamPrompt: (prompt: OrgPrompt) => void
   onOnboardingSubmit: (data: { orgName: string; initialMemberEmails: string[] }) => void
   onOnboardingCancel: () => void
+  onOpenManageOrg: () => void
+  onManageOrgBack: () => void
+  onApproveMember: (email: string) => void
+  onRemoveMember: (email: string) => void
+  onPromoteMember: (email: string) => void
+  onDemoteMember: (email: string) => void
+  onAddMember: (email: string) => void
 }
 
 export function withMovedId(
@@ -74,6 +83,7 @@ export function renderApp(
   session: { email: string } | null,
   orgSession: OrgSessionState | null,
   teamPrompts: OrgPromptsResult,
+  manageOrgState: ManageOrgState,
   context: RenderContext,
 ): void {
   root.innerHTML = ''
@@ -94,6 +104,8 @@ export function renderApp(
         session,
         onSignIn: context.onSignIn,
         onSignOut: context.onSignOut,
+        orgSession,
+        onOpenManageOrg: context.onOpenManageOrg,
       }),
     )
     return
@@ -102,6 +114,20 @@ export function renderApp(
   if (view.mode === 'org-onboarding') {
     root.appendChild(
       renderOrgOnboarding({ onSubmit: context.onOnboardingSubmit, onCancel: context.onOnboardingCancel }),
+    )
+    return
+  }
+
+  if (view.mode === 'manage-org') {
+    root.appendChild(
+      renderManageOrganisation(manageOrgState, {
+        onApprove: context.onApproveMember,
+        onRemove: context.onRemoveMember,
+        onPromote: context.onPromoteMember,
+        onDemote: context.onDemoteMember,
+        onAdd: context.onAddMember,
+        onBack: context.onManageOrgBack,
+      }),
     )
     return
   }

@@ -1,3 +1,5 @@
+import type { OrgSessionState } from '../shared/org-session'
+
 export interface SettingsPanelContext {
   onExport: () => void
   onImport: (file: File) => void
@@ -7,6 +9,8 @@ export interface SettingsPanelContext {
   session: { email: string } | null
   onSignIn: () => void
   onSignOut: () => void
+  orgSession: OrgSessionState | null
+  onOpenManageOrg: () => void
 }
 
 export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement {
@@ -32,6 +36,15 @@ export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement 
     signOutButton.textContent = 'Sign out'
     signOutButton.addEventListener('click', context.onSignOut)
     authSection.appendChild(signOutButton)
+
+    if (context.orgSession?.state === 'active' && context.orgSession.role === 'director') {
+      const manageButton = document.createElement('button')
+      manageButton.type = 'button'
+      manageButton.className = 'settings-action-button'
+      manageButton.textContent = 'Manage Organisation'
+      manageButton.addEventListener('click', context.onOpenManageOrg)
+      authSection.appendChild(manageButton)
+    }
   } else {
     const signInButton = document.createElement('button')
     signInButton.type = 'button'

@@ -19,6 +19,15 @@ import {
   type OrgPromptsResult,
 } from '../shared/org-prompts'
 import { fetchOrgSession, submitOrgOnboarding, type OrgSessionState } from '../shared/org-session'
+import {
+  fetchOrgMembers,
+  approveOrgMember,
+  removeOrgMember,
+  addOrgMember,
+  setOrgMemberRole,
+  type OrgMember,
+} from '../shared/org-members'
+import type { ManageOrgState } from './ManageOrganisation'
 
 const toolService = new ToolService(new ChromeLocalStorageAdapter())
 const authAdapter = new GoogleAuthAdapter()
@@ -34,6 +43,8 @@ let view: View = { mode: 'list' }
 let session: { email: string } | null = null
 let teamPrompts: OrgPromptsResult = { orgName: null, prompts: [] }
 let orgSession: OrgSessionState | null = null
+let orgMembers: OrgMember[] = []
+let manageOrgAddError: string | null = null
 const TEAM_RUN_KEY = '__team_prompt_run__'
 const runState = new Map<string, RunState>()
 const settingsState: SettingsState = { error: null, successCount: null }
@@ -90,10 +101,28 @@ async function resolveOrgSession(root: HTMLElement): Promise<void> {
   if (view.mode === 'list') await refresh(root)
 }
 
+async function refreshOrgMembers(root: HTMLElement): Promise<void> {
+  const idToken = await authAdapter.getValidIdToken()
+  if (!idToken) return
+  const members = await fetchOrgMembers(idToken)
+  if (members) orgMembers = members
+  if (view.mode === 'manage-org') await refresh(root)
+}
+
 async function refresh(root: HTMLElement): Promise<void> {
   try {
     const buttons = await toolService.listButtons()
-    renderApp(root, buttons, view, runState, settingsState, session, orgSession, teamPrompts, {
+    renderApp(
+      root,
+      buttons,
+      view,
+      runState,
+      settingsState,
+      session,
+      orgSession,
+      teamPrompts,
+      { members: orgMembers, addError: manageOrgAddError },
+      {
       onRun: async (button: Button) => {
         const alreadyRunning = [...runState.values()].some((state) => state.isRunning)
         if (alreadyRunning) return
@@ -321,6 +350,51 @@ async function refresh(root: HTMLElement): Promise<void> {
         view = { mode: 'list' }
         await refresh(root)
       },
+      onOpenManageOrg: () => {
+        clearRunErrors()
+        view = { mode: 'manage-org' }
+        void refresh(root)
+        void refreshOrgMembers(root)
+      },
+      onManageOrgBack: () => {
+        manageOrgAddError = null
+        view = { mode: 'settings' }
+        void refresh(root)
+      },
+      onApproveMember: async (email: string) => {
+        const idToken = await authAdapter.getValidIdToken()
+        if (!idToken) return
+        await approveOrgMember(idToken, email)
+        await refreshOrgMembers(root)
+      },
+      onRemoveMember: async (email: string) => {
+        const idToken = await authAdapter.getValidIdToken()
+        if (!idToken) return
+        const result = await removeOrgMember(idToken, email)
+        if (!result.ok) announce(result.error)
+        await refreshOrgMembers(root)
+      },
+      onPromoteMember: async (email: string) => {
+        const idToken = await authAdapter.getValidIdToken()
+        if (!idToken) return
+        const result = await setOrgMemberRole(idToken, email, 'director')
+        if (!result.ok) announce(result.error)
+        await refreshOrgMembers(root)
+      },
+      onDemoteMember: async (email: string) => {
+        const idToken = await authAdapter.getValidIdToken()
+        if (!idToken) return
+        const result = await setOrgMemberRole(idToken, email, 'member')
+        if (!result.ok) announce(result.error)
+        await refreshOrgMembers(root)
+      },
+      onAddMember: async (email: string) => {
+        const idToken = await authAdapter.getValidIdToken()
+        if (!idToken) return
+        const added = await addOrgMember(idToken, email)
+        manageOrgAddError = added ? null : 'Something went wrong adding that member. Check the console for details.'
+        await refreshOrgMembers(root)
+      },
       onRunTeamPrompt: async (prompt: OrgPrompt) => {
         const alreadyRunning = [...runState.values()].some((state) => state.isRunning)
         if (alreadyRunning) return
@@ -358,7 +432,8 @@ async function refresh(root: HTMLElement): Promise<void> {
           runState.delete(TEAM_RUN_KEY)
         }
       },
-    })
+      },
+    )
     if (focusHandleId) {
       const handles = Array.from(root.querySelectorAll<HTMLElement>('.drag-handle'))
       handles.find((el) => el.dataset.buttonId === focusHandleId)?.focus()
