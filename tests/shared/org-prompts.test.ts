@@ -2,19 +2,19 @@ import { describe, expect, it } from 'vitest'
 import { parseOrgPromptsResponse } from '../../src/shared/org-prompts'
 
 describe('parseOrgPromptsResponse', () => {
-  it('parses a matched org with prompts', () => {
+  it('parses a matched org with prompts, including each prompt id', () => {
     const raw = {
       org: { name: 'Acme' },
       prompts: [
-        { name: 'Summarize', prompt_text: 'Summarize this.', type: 'prompt' },
-        { name: 'Doc Summary', prompt_text: '/doc-summary', type: 'skill' },
+        { id: 'p1', name: 'Summarize', prompt_text: 'Summarize this.', type: 'prompt' },
+        { id: 'p2', name: 'Doc Summary', prompt_text: '/doc-summary', type: 'skill' },
       ],
     }
     expect(parseOrgPromptsResponse(raw)).toEqual({
       orgName: 'Acme',
       prompts: [
-        { name: 'Summarize', promptText: 'Summarize this.', type: 'prompt' },
-        { name: 'Doc Summary', promptText: '/doc-summary', type: 'skill' },
+        { id: 'p1', name: 'Summarize', promptText: 'Summarize this.', type: 'prompt' },
+        { id: 'p2', name: 'Doc Summary', promptText: '/doc-summary', type: 'skill' },
       ],
     })
   })
@@ -24,13 +24,18 @@ describe('parseOrgPromptsResponse', () => {
   })
 
   it('skips a prompt entry missing required fields instead of throwing', () => {
-    const raw = { org: { name: 'Acme' }, prompts: [{ name: 'Bad' }] }
+    const raw = { org: { name: 'Acme' }, prompts: [{ id: 'p1', name: 'Bad' }] }
     expect(() => parseOrgPromptsResponse(raw)).not.toThrow()
     expect(parseOrgPromptsResponse(raw).prompts).toEqual([])
   })
 
   it('skips a prompt entry with an unrecognized type', () => {
     const raw = { org: { name: 'Acme' }, prompts: [{ name: 'X', prompt_text: 'y', type: 'bogus' }] }
+    expect(parseOrgPromptsResponse(raw).prompts).toEqual([])
+  })
+
+  it('skips a prompt entry missing an id', () => {
+    const raw = { org: { name: 'Acme' }, prompts: [{ name: 'X', prompt_text: 'y', type: 'prompt' }] }
     expect(parseOrgPromptsResponse(raw).prompts).toEqual([])
   })
 

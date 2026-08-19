@@ -1,4 +1,5 @@
 export interface OrgPrompt {
+  id: string
   name: string
   promptText: string
   type: 'prompt' | 'skill'
@@ -18,12 +19,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parsePrompt(entry: unknown): OrgPrompt | null {
   if (!isRecord(entry)) return null
+  const id = entry.id
   const name = entry.name
   const promptText = entry.prompt_text
   const type = entry.type
-  if (typeof name !== 'string' || typeof promptText !== 'string') return null
+  if (typeof id !== 'string' || typeof name !== 'string' || typeof promptText !== 'string') return null
   if (type !== 'prompt' && type !== 'skill') return null
-  return { name, promptText, type }
+  return { id, name, promptText, type }
 }
 
 export function parseOrgPromptsResponse(raw: unknown): OrgPromptsResult {
@@ -92,4 +94,57 @@ export async function loadOrgPrompts(idToken: string): Promise<OrgPromptsResult>
   }
   const cached = await getCachedOrgPrompts()
   return cached ?? { orgName: null, prompts: [] }
+}
+
+export interface CreateOrgPromptInput {
+  name: string
+  promptText: string
+  type: 'prompt' | 'skill'
+}
+
+export async function createOrgPrompt(idToken: string, input: CreateOrgPromptInput): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/org-prompts`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    return response.ok
+  } catch (error) {
+    console.error('[Claude Tools] failed to create org prompt', error)
+    return false
+  }
+}
+
+export interface UpdateOrgPromptInput {
+  name?: string
+  promptText?: string
+  type?: 'prompt' | 'skill'
+}
+
+export async function updateOrgPrompt(idToken: string, id: string, input: UpdateOrgPromptInput): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/org-prompts/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    return response.ok
+  } catch (error) {
+    console.error('[Claude Tools] failed to update org prompt', error)
+    return false
+  }
+}
+
+export async function deleteOrgPrompt(idToken: string, id: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/org-prompts/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${idToken}` },
+    })
+    return response.ok
+  } catch (error) {
+    console.error('[Claude Tools] failed to delete org prompt', error)
+    return false
+  }
 }
