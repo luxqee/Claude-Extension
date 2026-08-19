@@ -50,6 +50,11 @@ export interface RenderContext {
   onPromoteMember: (email: string) => void
   onDemoteMember: (email: string) => void
   onAddMember: (email: string) => void
+  onCreatePrompt: (data: { name: string; promptText: string; type: 'prompt' | 'skill' }) => void
+  onUpdatePrompt: (id: string, data: { name: string; promptText: string; type: 'prompt' | 'skill' }) => void
+  onDeletePrompt: (id: string) => void
+  onEditPromptClick: (prompt: OrgPrompt) => void
+  onCancelEditPrompt: () => void
 }
 
 export function withMovedId(
@@ -126,6 +131,11 @@ export function renderApp(
         onPromote: context.onPromoteMember,
         onDemote: context.onDemoteMember,
         onAdd: context.onAddMember,
+        onCreatePrompt: context.onCreatePrompt,
+        onUpdatePrompt: context.onUpdatePrompt,
+        onDeletePrompt: context.onDeletePrompt,
+        onEditPromptClick: context.onEditPromptClick,
+        onCancelEditPrompt: context.onCancelEditPrompt,
         onBack: context.onManageOrgBack,
       }),
     )

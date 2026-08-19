@@ -15,6 +15,9 @@ import { parseImportedButtons, serializeButtons } from '../shared/backup'
 import {
   loadOrgPrompts,
   clearCachedOrgPrompts,
+  createOrgPrompt,
+  updateOrgPrompt,
+  deleteOrgPrompt,
   type OrgPrompt,
   type OrgPromptsResult,
 } from '../shared/org-prompts'
@@ -45,6 +48,9 @@ let teamPrompts: OrgPromptsResult = { orgName: null, prompts: [] }
 let orgSession: OrgSessionState | null = null
 let orgMembers: OrgMember[] = []
 let manageOrgAddError: string | null = null
+let orgPrompts: OrgPrompt[] = []
+let editingPromptId: string | null = null
+let promptFormError: string | null = null
 const TEAM_RUN_KEY = '__team_prompt_run__'
 const runState = new Map<string, RunState>()
 const settingsState: SettingsState = { error: null, successCount: null }
@@ -109,6 +115,14 @@ async function refreshOrgMembers(root: HTMLElement): Promise<void> {
   if (view.mode === 'manage-org') await refresh(root)
 }
 
+async function refreshOrgPrompts(root: HTMLElement): Promise<void> {
+  const idToken = await authAdapter.getValidIdToken()
+  if (!idToken) return
+  const result = await loadOrgPrompts(idToken)
+  orgPrompts = result.prompts
+  if (view.mode === 'manage-org') await refresh(root)
+}
+
 async function refresh(root: HTMLElement): Promise<void> {
   try {
     const buttons = await toolService.listButtons()
@@ -121,7 +135,13 @@ async function refresh(root: HTMLElement): Promise<void> {
       session,
       orgSession,
       teamPrompts,
-      { members: orgMembers, addError: manageOrgAddError },
+      {
+        members: orgMembers,
+        addError: manageOrgAddError,
+        prompts: orgPrompts,
+        editingPromptId,
+        promptFormError,
+      },
       {
       onRun: async (button: Button) => {
         const alreadyRunning = [...runState.values()].some((state) => state.isRunning)
@@ -355,9 +375,12 @@ async function refresh(root: HTMLElement): Promise<void> {
         view = { mode: 'manage-org' }
         void refresh(root)
         void refreshOrgMembers(root)
+        void refreshOrgPrompts(root)
       },
       onManageOrgBack: () => {
         manageOrgAddError = null
+        editingPromptId = null
+        promptFormError = null
         view = { mode: 'settings' }
         void refresh(root)
       },
@@ -394,6 +417,37 @@ async function refresh(root: HTMLElement): Promise<void> {
         const added = await addOrgMember(idToken, email)
         manageOrgAddError = added ? null : 'Something went wrong adding that member. Check the console for details.'
         await refreshOrgMembers(root)
+      },
+      onCreatePrompt: async (data) => {
+        const idToken = await authAdapter.getValidIdToken()
+        if (!idToken) return
+        const created = await createOrgPrompt(idToken, data)
+        promptFormError = created ? null : 'Something went wrong adding that prompt. Check the console for details.'
+        await refreshOrgPrompts(root)
+      },
+      onUpdatePrompt: async (id, data) => {
+        const idToken = await authAdapter.getValidIdToken()
+        if (!idToken) return
+        const updated = await updateOrgPrompt(idToken, id, data)
+        if (updated) editingPromptId = null
+        promptFormError = updated ? null : 'Something went wrong saving that prompt. Check the console for details.'
+        await refreshOrgPrompts(root)
+      },
+      onDeletePrompt: async (id: string) => {
+        const idToken = await authAdapter.getValidIdToken()
+        if (!idToken) return
+        await deleteOrgPrompt(idToken, id)
+        await refreshOrgPrompts(root)
+      },
+      onEditPromptClick: (prompt: OrgPrompt) => {
+        editingPromptId = prompt.id
+        promptFormError = null
+        void refresh(root)
+      },
+      onCancelEditPrompt: () => {
+        editingPromptId = null
+        promptFormError = null
+        void refresh(root)
       },
       onRunTeamPrompt: async (prompt: OrgPrompt) => {
         const alreadyRunning = [...runState.values()].some((state) => state.isRunning)
