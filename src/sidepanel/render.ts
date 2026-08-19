@@ -133,7 +133,7 @@ export function renderApp(
   })
   root.appendChild(list)
 
-  if (teamPrompts.prompts.length > 0) {
+  if (session && teamPrompts.prompts.length > 0) {
     root.appendChild(
       renderTeamSection(teamPrompts.orgName ?? 'Team', teamPrompts.prompts, context.onRunTeamPrompt),
     )

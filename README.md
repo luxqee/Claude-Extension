@@ -21,8 +21,11 @@ automatically.
   set with someone else.
 - **Light and dark mode**, matching your OS setting and claude.ai's own
   color palette.
-- Runs entirely client-side — no account, no backend, no data leaves
-  your browser. Buttons are stored with `chrome.storage.local`.
+- Your personal buttons run entirely client-side — no account needed,
+  no backend, no data leaves your browser. Buttons are stored with
+  `chrome.storage.local`. Optionally signing in with Google unlocks a
+  read-only Team section that fetches your organization's shared
+  prompts from the project's backend, sent with your identity token.
 
 ## Installing (unpacked, for now)
 

@@ -12,7 +12,12 @@ import {
 import type { Button } from '../shared/types'
 import type { InsertPromptRequest, InsertPromptResponse } from '../shared/messages'
 import { parseImportedButtons, serializeButtons } from '../shared/backup'
-import { loadOrgPrompts, type OrgPrompt, type OrgPromptsResult } from '../shared/org-prompts'
+import {
+  loadOrgPrompts,
+  clearCachedOrgPrompts,
+  type OrgPrompt,
+  type OrgPromptsResult,
+} from '../shared/org-prompts'
 
 const toolService = new ToolService(new ChromeLocalStorageAdapter())
 const authAdapter = new GoogleAuthAdapter()
@@ -46,22 +51,28 @@ function announce(message: string): void {
 }
 
 async function refreshTeamPrompts(root: HTMLElement): Promise<void> {
+  const startedForSession = session
   const idToken = await authAdapter.getValidIdToken()
+  if (session !== startedForSession) return
   if (!idToken) {
     // getValidIdToken() already cleared the stored session if the silent
     // refresh failed outright -- check whether that happened so we only
     // prompt the user to sign in again when it's actually needed, not on
     // every call (e.g. a call made while genuinely signed out already).
     const stillSignedIn = await authAdapter.getCurrentSession()
+    if (session !== startedForSession) return
     if (session && !stillSignedIn) {
       session = null
+      await clearCachedOrgPrompts()
       announce('Please sign in again to see your team prompts.')
     }
     teamPrompts = { orgName: null, prompts: [] }
     if (view.mode === 'list') await refresh(root)
     return
   }
-  teamPrompts = await loadOrgPrompts(idToken)
+  const result = await loadOrgPrompts(idToken)
+  if (session !== startedForSession) return
+  teamPrompts = result
   if (view.mode === 'list') await refresh(root)
 }
 
@@ -262,6 +273,7 @@ async function refresh(root: HTMLElement): Promise<void> {
       },
       onSignOut: async () => {
         await authAdapter.signOut()
+        await clearCachedOrgPrompts()
         session = null
         teamPrompts = { orgName: null, prompts: [] }
         await refresh(root)

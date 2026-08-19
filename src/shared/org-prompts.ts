@@ -80,6 +80,10 @@ async function setCachedOrgPrompts(result: OrgPromptsResult): Promise<void> {
   await chrome.storage.local.set({ [CACHE_STORAGE_KEY]: result })
 }
 
+export async function clearCachedOrgPrompts(): Promise<void> {
+  await chrome.storage.local.remove(CACHE_STORAGE_KEY)
+}
+
 export async function loadOrgPrompts(idToken: string): Promise<OrgPromptsResult> {
   const fresh = await fetchOrgPrompts(idToken)
   if (fresh) {
