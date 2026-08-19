@@ -1,3 +1,9 @@
+declare const Buffer: {
+  from(data: string | object): {
+    toString(encoding: 'base64url'): string
+  }
+}
+
 import { describe, expect, it } from 'vitest'
 import {
   buildGoogleAuthUrl,
