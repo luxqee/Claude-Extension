@@ -24,7 +24,7 @@ describe('buildGoogleAuthUrl', () => {
     const parsed = new URL(url)
     expect(parsed.origin + parsed.pathname).toBe('https://accounts.google.com/o/oauth2/v2/auth')
     expect(parsed.searchParams.get('client_id')).toBe(
-      '14020508582-hat1hneq6stdouu0kc30p9vlfpfi69t7.apps.googleusercontent.com',
+      '14020508582-rsh9tk73lhm3c3ekki32mvfc9a2m3di6.apps.googleusercontent.com',
     )
     expect(parsed.searchParams.get('response_type')).toBe('id_token')
     expect(parsed.searchParams.get('redirect_uri')).toBe('https://abc123.chromiumapp.org/')
