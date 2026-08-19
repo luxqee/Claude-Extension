@@ -53,7 +53,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   try {
     const [orgs, memberRows] = await Promise.all([
       sql`SELECT id, name, domain FROM organizations` as unknown as Promise<OrgRow[]>,
-      sql`SELECT org_id, email, role, status FROM org_members WHERE lower(email) = lower(${email}) ORDER BY created_at DESC LIMIT 1` as unknown as Promise<
+      // Oldest membership wins. Any director can add any email at any
+      // domain as an active member (by design -- cross-domain membership is
+      // supported), so picking the newest row would let a director of org X
+      // hijack the session of someone who already belongs to org Y.
+      sql`SELECT org_id, email, role, status FROM org_members WHERE lower(email) = lower(${email}) ORDER BY created_at ASC LIMIT 1` as unknown as Promise<
         MemberRow[]
       >,
     ])
@@ -89,8 +93,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     if (!existingMember) {
       await sql`
         INSERT INTO org_members (org_id, email, role, status)
-        VALUES (${resolution.orgId}, ${email}, 'member', 'pending')
-        ON CONFLICT (org_id, email) DO NOTHING
+        VALUES (${resolution.orgId}, ${email.toLowerCase()}, 'member', 'pending')
+        ON CONFLICT (org_id, lower(email)) DO NOTHING
       `
     }
     const org = orgs.find((candidate) => candidate.id === resolution.orgId)

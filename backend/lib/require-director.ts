@@ -14,10 +14,15 @@ export interface DirectorContext {
 }
 
 export async function resolveDirectorContext(sql: Sql, email: string): Promise<DirectorContext | null> {
+  // Oldest directorship wins, matching org-session.ts's membership
+  // resolution. These two must agree: if a director's session resolves to
+  // org A but their management writes went to org B, every director action
+  // (prompt CRUD, roster changes) would silently target an org other than
+  // the one the UI is showing them.
   const rows = (await sql`
     SELECT org_id FROM org_members
     WHERE lower(email) = lower(${email}) AND role = 'director' AND status = 'active'
-    ORDER BY created_at DESC LIMIT 1
+    ORDER BY created_at ASC LIMIT 1
   `) as { org_id: string }[]
   return rows[0] ? { orgId: rows[0].org_id, email } : null
 }

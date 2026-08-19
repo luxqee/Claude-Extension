@@ -57,7 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       sql`
         INSERT INTO org_members (org_id, email, role, status, invited_by)
         VALUES (${director.orgId}, ${targetEmail}, 'member', 'active', ${callerEmail})
-        ON CONFLICT (org_id, email) DO UPDATE SET status = 'active'
+        ON CONFLICT (org_id, lower(email)) DO UPDATE SET status = 'active'
       `,
     ])
 

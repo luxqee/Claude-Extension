@@ -74,7 +74,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   try {
     const [orgs, memberRows] = await Promise.all([
       sql`SELECT id, name, domain FROM organizations` as unknown as Promise<OrgRow[]>,
-      sql`SELECT org_id, email, role, status FROM org_members WHERE lower(email) = lower(${email}) ORDER BY created_at DESC LIMIT 1` as unknown as Promise<
+      // Oldest membership wins, mirroring org-session.ts so this "are you
+      // already in an org?" check resolves to the same row the session does.
+      sql`SELECT org_id, email, role, status FROM org_members WHERE lower(email) = lower(${email}) ORDER BY created_at ASC LIMIT 1` as unknown as Promise<
         MemberRow[]
       >,
     ])
@@ -105,8 +107,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       if (raceOrgId) {
         await sql`
           INSERT INTO org_members (org_id, email, role, status)
-          VALUES (${raceOrgId}, ${email}, 'member', 'pending')
-          ON CONFLICT (org_id, email) DO NOTHING
+          VALUES (${raceOrgId}, ${email.toLowerCase()}, 'member', 'pending')
+          ON CONFLICT (org_id, lower(email)) DO NOTHING
         `
         const org = orgs.find((candidate) => candidate.id === raceOrgId)
         res.status(200).json({ outcome: 'joined_existing', org: { id: raceOrgId, name: org?.name ?? '' } })
@@ -118,8 +120,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       INSERT INTO organizations (name, domain) VALUES (${orgName}, ${domain}) RETURNING id, name
     `) as { id: string; name: string }[]
 
+    // org_members is uniquely indexed on (org_id, lower(email)) and every
+    // read compares with lower(email) -- so every write stores the
+    // lowercased form, including the director's own row from the token.
     await sql`
-      INSERT INTO org_members (org_id, email, role, status) VALUES (${createdOrg.id}, ${email}, 'director', 'active')
+      INSERT INTO org_members (org_id, email, role, status) VALUES (${createdOrg.id}, ${email.toLowerCase()}, 'director', 'active')
     `
 
     for (const memberEmail of initialMemberEmails) {
@@ -127,7 +132,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       await sql`
         INSERT INTO org_members (org_id, email, role, status, invited_by)
         VALUES (${createdOrg.id}, ${memberEmail}, 'member', 'active', ${email})
-        ON CONFLICT (org_id, email) DO NOTHING
+        ON CONFLICT (org_id, lower(email)) DO NOTHING
       `
     }
 
