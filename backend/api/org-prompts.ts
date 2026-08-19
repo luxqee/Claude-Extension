@@ -20,7 +20,9 @@ interface PromptRow {
 async function verifyEmail(idToken: string): Promise<string | null> {
   try {
     const ticket = await oauthClient.verifyIdToken({ idToken, audience: GOOGLE_CLIENT_ID })
-    return ticket.getPayload()?.email ?? null
+    const payload = ticket.getPayload()
+    if (!payload?.email_verified) return null
+    return payload.email ?? null
   } catch (error) {
     console.error('[org-prompts] token verification failed', error)
     return null
@@ -28,6 +30,11 @@ async function verifyEmail(idToken: string): Promise<string | null> {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'method not allowed' })
+    return
+  }
+
   const authHeader = req.headers.authorization
   const idToken = authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null
 
@@ -61,7 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
     const results = await sql.transaction([
       sql`SELECT set_config('app.current_org_id', ${orgId}, true)`,
-      sql`SELECT name, prompt_text, type FROM prompts`,
+      sql`SELECT name, prompt_text, type FROM prompts WHERE org_id = ${orgId}`,
     ])
     const prompts = results[1] as PromptRow[]
 

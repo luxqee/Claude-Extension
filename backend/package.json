@@ -7,6 +7,9 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
+  "engines": {
+    "node": "22.x"
+  },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.0",
     "google-auth-library": "^9.14.0"

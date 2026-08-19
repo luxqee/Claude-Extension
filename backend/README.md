@@ -22,6 +22,17 @@ Run `schema.sql` once against your Neon database before the API will work:
 psql "$DATABASE_URL" -f schema.sql
 ```
 
+Isolation between organizations depends on `schema.sql`'s
+`force row level security` line, not just the `WHERE org_id = ...` clause
+in the API code -- defense-in-depth is the point. Note that this only
+holds as long as the role in `DATABASE_URL` is a plain, non-superuser role
+without the `BYPASSRLS` attribute; either of those would silently defeat
+`FORCE ROW LEVEL SECURITY` and re-open cross-tenant access. Once real data
+exists, it's worth manually verifying: seed two organizations with
+different domains and their own prompts, sign in as a user at each
+domain, and confirm each only ever sees their own organization's prompts,
+never the other's.
+
 Then seed at least one organization directly in Neon's SQL Editor:
 
 ```sql

@@ -19,6 +19,7 @@ create table prompts (
 );
 
 alter table prompts enable row level security;
+alter table prompts force row level security;
 
 create policy org_isolation on prompts
   for select
