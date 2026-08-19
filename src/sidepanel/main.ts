@@ -27,6 +27,7 @@ const root: HTMLElement = rootElement
 let view: View = { mode: 'list' }
 let session: { email: string } | null = null
 let teamPrompts: OrgPromptsResult = { orgName: null, prompts: [] }
+const TEAM_RUN_KEY = '__team_prompt_run__'
 const runState = new Map<string, RunState>()
 const settingsState: SettingsState = { error: null, successCount: null }
 let focusHandleId: string | null = null
@@ -268,33 +269,38 @@ async function refresh(root: HTMLElement): Promise<void> {
       onRunTeamPrompt: async (prompt: OrgPrompt) => {
         const alreadyRunning = [...runState.values()].some((state) => state.isRunning)
         if (alreadyRunning) return
+        runState.set(TEAM_RUN_KEY, { isRunning: true, error: null })
         try {
-          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-          if (!tab?.id || !tab.url) {
-            announce('Open claude.ai to use this tool.')
-            return
-          }
-          const request: InsertPromptRequest = { type: 'INSERT_PROMPT', prompt: prompt.promptText }
-          let response: InsertPromptResponse
           try {
-            response = await chrome.tabs.sendMessage<InsertPromptRequest, InsertPromptResponse>(
-              tab.id,
-              request,
-            )
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+            if (!tab?.id || !tab.url) {
+              announce('Open claude.ai to use this tool.')
+              return
+            }
+            const request: InsertPromptRequest = { type: 'INSERT_PROMPT', prompt: prompt.promptText }
+            let response: InsertPromptResponse
+            try {
+              response = await chrome.tabs.sendMessage<InsertPromptRequest, InsertPromptResponse>(
+                tab.id,
+                request,
+              )
+            } catch (error) {
+              console.error('[Claude Tools] failed to reach content script', error)
+              announce('Reload the Claude tab and try again.')
+              return
+            }
+            if (response.ok) {
+              announce(`Inserted ${prompt.name}.`)
+            } else {
+              console.error('[Claude Tools] team prompt run failed', response.error, response.message)
+              announce(response.message)
+            }
           } catch (error) {
-            console.error('[Claude Tools] failed to reach content script', error)
-            announce('Reload the Claude tab and try again.')
-            return
+            console.error('[Claude Tools] unexpected error running team prompt', error)
+            announce('Something went wrong running that tool. Check the console for details.')
           }
-          if (response.ok) {
-            announce(`Inserted ${prompt.name}.`)
-          } else {
-            console.error('[Claude Tools] team prompt run failed', response.error, response.message)
-            announce(response.message)
-          }
-        } catch (error) {
-          console.error('[Claude Tools] unexpected error running team prompt', error)
-          announce('Something went wrong running that tool. Check the console for details.')
+        } finally {
+          runState.delete(TEAM_RUN_KEY)
         }
       },
     })
