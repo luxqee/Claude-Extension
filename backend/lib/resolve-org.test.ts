@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveOrgId } from './resolve-org'
+import { resolveOrgId, isPublicEmailDomain } from './resolve-org'
 
 const ORGS = [
   { id: '11111111-1111-1111-1111-111111111111', domain: 'acme.com' },
@@ -29,5 +29,26 @@ describe('resolveOrgId', () => {
 
   it('matches the second org when the domain corresponds to it', () => {
     expect(resolveOrgId('bob@example.org', ORGS)).toBe('22222222-2222-2222-2222-222222222222')
+  })
+})
+
+describe('isPublicEmailDomain', () => {
+  it('returns true for gmail.com', () => {
+    expect(isPublicEmailDomain('gmail.com')).toBe(true)
+  })
+
+  it('matches case-insensitively', () => {
+    expect(isPublicEmailDomain('GMAIL.COM')).toBe(true)
+  })
+
+  it('returns true for outlook.com, hotmail.com, yahoo.com, icloud.com', () => {
+    expect(isPublicEmailDomain('outlook.com')).toBe(true)
+    expect(isPublicEmailDomain('hotmail.com')).toBe(true)
+    expect(isPublicEmailDomain('yahoo.com')).toBe(true)
+    expect(isPublicEmailDomain('icloud.com')).toBe(true)
+  })
+
+  it('returns false for a real company domain', () => {
+    expect(isPublicEmailDomain('acme.com')).toBe(false)
   })
 })

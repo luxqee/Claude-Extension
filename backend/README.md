@@ -33,10 +33,27 @@ different domains and their own prompts, sign in as a user at each
 domain, and confirm each only ever sees their own organization's prompts,
 never the other's.
 
-Then seed at least one organization directly in Neon's SQL Editor:
+If you're migrating an existing database from Phase 2C rather than
+starting fresh, first run:
 
 ```sql
-insert into organizations (name, domain) values ('Your Company', 'yourcompany.com');
+alter table organizations drop constraint organizations_domain_key;
+```
+
+then apply everything from `create table org_members` onward in
+`schema.sql`.
+
+Organizations, membership, and prompts are now created and managed
+through the API (`POST /api/org-onboarding`, the `org_members` and
+`org_prompts` endpoints — see below) rather than by hand. Direct SQL
+seeding is still useful for local testing:
+
+```sql
+insert into organizations (name, domain) values ('Your Company', 'yourcompany.com')
+returning id;
+-- then, using the returned id:
+insert into org_members (org_id, email, role, status) values
+  ('<org-id>', 'you@yourcompany.com', 'director', 'active');
 ```
 
 ## Local development
