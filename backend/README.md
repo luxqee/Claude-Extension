@@ -118,3 +118,9 @@ POST /api/org-members-remove    { "email": "..." }        (director-only) -> 204
 POST /api/org-members-add       { "email": "..." }        (director-only) -> 204
 POST /api/org-members-set-role  { "email": "...", "role": "director" | "member" }  (director-only) -> 204 | 400 (last director)
 ```
+
+```
+POST   /api/org-prompts        { "name", "promptText", "type" }         (director-only) -> 201
+PATCH  /api/org-prompts/:id    { "name"?, "promptText"?, "type"? }        (director-only) -> 204
+DELETE /api/org-prompts/:id                                               (director-only) -> 204
+```

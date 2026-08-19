@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { OAuth2Client } from 'google-auth-library'
 import { neon } from '@neondatabase/serverless'
 import { resolveOrgId, type OrgRecord } from '../lib/resolve-org.js'
+import { resolveDirectorContext } from '../lib/require-director.js'
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID ?? ''
 const sql = neon(process.env.DATABASE_URL ?? '')
@@ -12,6 +13,7 @@ interface OrgRow extends OrgRecord {
 }
 
 interface PromptRow {
+  id: string
   name: string
   prompt_text: string
   type: 'prompt' | 'skill'
@@ -30,7 +32,7 @@ async function verifyEmail(idToken: string): Promise<string | null> {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  if (req.method !== 'GET') {
+  if (req.method !== 'GET' && req.method !== 'POST') {
     res.status(405).json({ error: 'method not allowed' })
     return
   }
@@ -46,6 +48,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const email = await verifyEmail(idToken)
   if (!email) {
     res.status(401).json({ error: 'invalid token' })
+    return
+  }
+
+  if (req.method === 'POST') {
+    const body = req.body as { name?: unknown; promptText?: unknown; type?: unknown }
+    if (typeof body.name !== 'string' || body.name.trim().length === 0) {
+      res.status(400).json({ error: 'name is required' })
+      return
+    }
+    if (typeof body.promptText !== 'string' || body.promptText.trim().length === 0) {
+      res.status(400).json({ error: 'promptText is required' })
+      return
+    }
+    if (body.type !== 'prompt' && body.type !== 'skill') {
+      res.status(400).json({ error: 'type must be "prompt" or "skill"' })
+      return
+    }
+
+    try {
+      const director = await resolveDirectorContext(sql, email)
+      if (!director) {
+        res.status(403).json({ error: 'not a director' })
+        return
+      }
+
+      await sql.transaction([
+        sql`SELECT set_config('app.current_org_id', ${director.orgId}, true)`,
+        sql`INSERT INTO prompts (org_id, name, prompt_text, type) VALUES (${director.orgId}, ${body.name.trim()}, ${body.promptText.trim()}, ${body.type})`,
+      ])
+
+      res.status(201).json({ ok: true })
+    } catch (error) {
+      console.error('[org-prompts] create failed', error)
+      res.status(500).json({ error: 'internal error' })
+    }
     return
   }
 
@@ -68,13 +105,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
     const results = await sql.transaction([
       sql`SELECT set_config('app.current_org_id', ${orgId}, true)`,
-      sql`SELECT name, prompt_text, type FROM prompts WHERE org_id = ${orgId}`,
+      sql`SELECT id, name, prompt_text, type FROM prompts WHERE org_id = ${orgId}`,
     ])
     const prompts = results[1] as PromptRow[]
 
     res.status(200).json({
       org: { name: org.name },
-      prompts: prompts.map((p) => ({ name: p.name, prompt_text: p.prompt_text, type: p.type })),
+      prompts: prompts.map((p) => ({ id: p.id, name: p.name, prompt_text: p.prompt_text, type: p.type })),
     })
   } catch (error) {
     console.error('[org-prompts] database query failed', error)
