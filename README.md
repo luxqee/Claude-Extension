@@ -19,13 +19,16 @@ automatically.
   Arrow Up / Arrow Down).
 - **Export / import** as JSON, for backing up your buttons or sharing a
   set with someone else.
-- **Light and dark mode**, matching your OS setting and claude.ai's own
-  color palette.
 - Your personal buttons run entirely client-side — no account needed,
   no backend, no data leaves your browser. Buttons are stored with
-  `chrome.storage.local`. Optionally signing in with Google unlocks a
-  read-only Team section that fetches your organization's shared
-  prompts from the project's backend, sent with your identity token.
+  `chrome.storage.local`.
+- **Organisations** — optionally signing in with your work Google
+  account unlocks a Team section of shared prompts, plus real
+  membership: a first sign-in at a company domain becomes its
+  admin and can approve teammates who sign in afterward; an admin
+  can also add anyone by email directly, manage the shared prompt
+  list, and see per-member usage. See [Organisations](#organisations)
+  below for the full model.
 
 ## Installing (unpacked, for now)
 
@@ -92,6 +95,38 @@ this:
 **"Open claude.ai to use this tool"** — the active browser tab isn't a
 claude.ai page. Switch to your claude.ai tab and try again.
 
+## Organisations
+
+Signing in is entirely optional — personal buttons work with zero
+sign-in, forever. Clicking **"Sign in with your organisation"** in
+Settings unlocks a shared, org-managed prompt list on top of that:
+
+- **First sign-in at a company domain creates the organisation** and
+  makes that person its admin. Signing in from anyone else at the
+  same domain afterward puts them in a "waiting for approval" state
+  until an admin approves them — personal buttons still work
+  normally while pending.
+- **Public email domains** (`gmail.com`, `outlook.com`, etc.) never
+  auto-join anyone — every sign-in there starts its own separate
+  organisation, since strangers sharing a mail provider aren't a
+  company.
+- **Admins** get a "Manage Organisation" view in Settings: approve or
+  remove members, add someone by email directly (no domain match
+  needed), promote/demote other admins, and create/edit/delete the
+  organisation's shared prompts — every member sees prompt changes
+  the next time they open the sidebar. An organisation can never drop
+  to zero admins; the last one can't be removed or demoted until a
+  second admin exists.
+- **Usage reporting:** while actively signed in to an organisation, an
+  approved member's session/weekly/spend usage percentages (the same
+  numbers shown by the personal usage widget on claude.ai) are
+  reported periodically so admins can see them in Manage
+  Organisation. Reporting stops immediately on sign-out.
+
+All of this is enforced server-side, not just hidden in the UI — every
+admin-only action re-checks the caller's own membership row from their
+verified Google identity token on every request.
+
 ## Development
 
 ```bash
@@ -115,12 +150,25 @@ to see changes.
   `content-script.ts` wires that up to messages from the sidebar.
 - **`src/sidepanel/`** — the sidebar UI (vanilla TypeScript + DOM, no
   framework): the button list, the add/edit form, drag-and-drop reorder,
-  and the settings panel.
+  the settings panel, and the organisation views (`OrgOnboarding.ts` for
+  creating/joining an org, `ManageOrganisation.ts` for the admin roster
+  and prompt management).
 - **`src/shared/`** — code shared between the sidebar and content
   script: the `Button`/`ButtonType` data model, the `StorageAdapter`
   interface (implemented today by `chrome-local-adapter.ts` over
   `chrome.storage.local`), `ToolService` (the CRUD layer the sidebar UI
-  calls), and `backup.ts` (export/import JSON handling).
+  calls), `backup.ts` (export/import JSON handling), and the
+  organisation client modules — `org-session.ts` (resolve/create/join),
+  `org-members.ts` (admin roster actions), `org-prompts.ts` (shared
+  prompts, including admin create/edit/delete), and `usage-report.ts`
+  (usage reporting).
+- **`backend/`** — a separate Vercel serverless API (Neon Postgres) that
+  backs the organisation features: verifies each request's Google
+  identity token, enforces row-level security per organisation, and
+  re-checks the caller's own membership row server-side for every
+  admin-only action rather than trusting anything the client sends. See
+  `backend/README.md` for setup, environment variables, and the API
+  surface.
 
 The storage layer sits behind the `StorageAdapter` interface
 specifically so a different backend (e.g. a synced account-based store)
