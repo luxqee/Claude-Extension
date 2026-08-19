@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { OAuth2Client } from 'google-auth-library'
 import { neon } from '@neondatabase/serverless'
-import { resolveOrgId, type OrgRecord } from '../lib/resolve-org'
+import { resolveOrgId, type OrgRecord } from '../lib/resolve-org.js'
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID ?? ''
 const sql = neon(process.env.DATABASE_URL ?? '')
