@@ -159,7 +159,7 @@ create policy org_isolation on prompts
 
 -- FORCE (above) also applies to INSERT/UPDATE/DELETE for the owning role,
 -- and RLS default-denies any command with no matching policy. Prompts now
--- have a real application write path (Task 5's director-only CRUD
+-- have a real application write path (Task 4's director-only CRUD
 -- endpoints) rather than only direct-database seeding, so this policy
 -- allows any insert and relies on the API layer to check the caller is a
 -- director of the target org_id before ever running one -- the same
@@ -3820,7 +3820,7 @@ The last task in this plan — after this, every requirement in the design spec 
 
 - [ ] **Step 1: Write the failing tests for parsing the org-usage response**
 
-Create `tests/shared/usage-report.test.ts`... — **wait, this file already exists from Task 9.** Add to the existing `tests/shared/usage-report.test.ts`, a new `describe` block after the existing `usageSnapshotToReportBody` block:
+`tests/shared/usage-report.test.ts` already exists (created in Task 9). Add a new `describe` block to it, after the existing `usageSnapshotToReportBody` block:
 
 ```ts
 import { parseOrgUsageResponse } from '../../src/shared/usage-report'
