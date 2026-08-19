@@ -52,10 +52,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     }
 
     if (req.method === 'DELETE') {
-      await sql.transaction([
+      // RETURNING id is how many rows actually matched -- the neon client is
+      // configured without full results, so a bare DELETE gives no row count
+      // and a prompt belonging to another org (or no prompt at all) would
+      // otherwise report success while changing nothing.
+      const results = await sql.transaction([
         sql`SELECT set_config('app.current_org_id', ${director.orgId}, true)`,
-        sql`DELETE FROM prompts WHERE id = ${promptId} AND org_id = ${director.orgId}`,
+        sql`DELETE FROM prompts WHERE id = ${promptId} AND org_id = ${director.orgId} RETURNING id`,
       ])
+      const deleted = results[1] as { id: string }[]
+      if (deleted.length === 0) {
+        res.status(404).json({ error: 'prompt not found' })
+        return
+      }
       res.status(204).end()
       return
     }
@@ -89,7 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       return
     }
 
-    await sql.transaction([
+    const results = await sql.transaction([
       sql`SELECT set_config('app.current_org_id', ${director.orgId}, true)`,
       sql`
         UPDATE prompts SET
@@ -97,8 +106,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
           prompt_text = COALESCE(${updates.prompt_text ?? null}, prompt_text),
           type = COALESCE(${updates.type ?? null}, type)
         WHERE id = ${promptId} AND org_id = ${director.orgId}
+        RETURNING id
       `,
     ])
+    const updated = results[1] as { id: string }[]
+    if (updated.length === 0) {
+      res.status(404).json({ error: 'prompt not found' })
+      return
+    }
     res.status(204).end()
   } catch (error) {
     console.error('[org-prompts/:id] database query failed', error)

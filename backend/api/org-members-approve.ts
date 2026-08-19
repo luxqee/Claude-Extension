@@ -52,10 +52,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       return
     }
 
-    await sql.transaction([
+    // RETURNING id is how many rows actually matched -- without it an
+    // approval for someone who is not in this director's org would report
+    // success while changing nothing. Matches org-members-remove's 404.
+    const results = await sql.transaction([
       sql`SELECT set_config('app.current_org_id', ${director.orgId}, true)`,
-      sql`UPDATE org_members SET status = 'active' WHERE org_id = ${director.orgId} AND lower(email) = lower(${targetEmail})`,
+      sql`UPDATE org_members SET status = 'active' WHERE org_id = ${director.orgId} AND lower(email) = lower(${targetEmail}) RETURNING id`,
     ])
+    const approved = results[1] as { id: string }[]
+    if (approved.length === 0) {
+      res.status(404).json({ error: 'member not found' })
+      return
+    }
 
     res.status(204).end()
   } catch (error) {
