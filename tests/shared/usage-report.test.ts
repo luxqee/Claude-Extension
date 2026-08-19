@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { usageSnapshotToReportBody } from '../../src/shared/usage-report'
+import { usageSnapshotToReportBody, parseOrgUsageResponse } from '../../src/shared/usage-report'
 
 describe('usageSnapshotToReportBody', () => {
   it('maps Session, Weekly, and Extra usage meters to their named fields', () => {
@@ -41,5 +41,32 @@ describe('usageSnapshotToReportBody', () => {
       weeklyPercent: null,
       spendPercent: null,
     })
+  })
+})
+
+describe('parseOrgUsageResponse', () => {
+  it('parses a list of usage snapshots', () => {
+    const raw = {
+      snapshots: [
+        { email: 'alice@acme.com', sessionPercent: 12, weeklyPercent: 25, spendPercent: null, updatedAt: '2026-08-19T00:00:00Z' },
+      ],
+    }
+    expect(parseOrgUsageResponse(raw)).toEqual([
+      { email: 'alice@acme.com', sessionPercent: 12, weeklyPercent: 25, spendPercent: null, updatedAt: '2026-08-19T00:00:00Z' },
+    ])
+  })
+
+  it('skips an entry missing email', () => {
+    const raw = { snapshots: [{ sessionPercent: 12, weeklyPercent: 25, spendPercent: null, updatedAt: 'x' }] }
+    expect(parseOrgUsageResponse(raw)).toEqual([])
+  })
+
+  it('returns an empty array when snapshots is missing', () => {
+    expect(parseOrgUsageResponse({})).toEqual([])
+  })
+
+  it('returns an empty array for non-object input, without throwing', () => {
+    expect(parseOrgUsageResponse(null)).toEqual([])
+    expect(parseOrgUsageResponse('nope')).toEqual([])
   })
 })

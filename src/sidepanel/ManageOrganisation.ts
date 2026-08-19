@@ -1,5 +1,6 @@
 import type { OrgMember } from '../shared/org-members'
 import type { OrgPrompt } from '../shared/org-prompts'
+import type { OrgUsageSnapshot } from '../shared/usage-report'
 
 export interface ManageOrgState {
   members: OrgMember[]
@@ -7,6 +8,7 @@ export interface ManageOrgState {
   prompts: OrgPrompt[]
   editingPromptId: string | null
   promptFormError: string | null
+  usageSnapshots: OrgUsageSnapshot[]
 }
 
 export interface ManageOrganisationContext {
@@ -247,6 +249,43 @@ export function renderManageOrganisation(state: ManageOrgState, context: ManageO
     promptError.className = 'settings-error'
     promptError.textContent = state.promptFormError
     container.appendChild(promptError)
+  }
+
+  const usageHeading = document.createElement('h3')
+  usageHeading.className = 'team-section-heading'
+  usageHeading.textContent = 'Member usage'
+  container.appendChild(usageHeading)
+
+  if (state.usageSnapshots.length === 0) {
+    const emptyUsage = document.createElement('p')
+    emptyUsage.className = 'settings-hint'
+    emptyUsage.textContent = 'No usage reported yet.'
+    container.appendChild(emptyUsage)
+  } else {
+    const usageList = document.createElement('ul')
+    usageList.className = 'roster-list'
+    state.usageSnapshots.forEach((snapshot) => {
+      const item = document.createElement('li')
+      item.className = 'roster-row'
+
+      const email = document.createElement('span')
+      email.className = 'roster-row-email'
+      email.textContent = snapshot.email
+      item.appendChild(email)
+
+      const percents = document.createElement('span')
+      percents.className = 'roster-row-status'
+      const parts = [
+        snapshot.sessionPercent !== null ? `Session ${snapshot.sessionPercent}%` : null,
+        snapshot.weeklyPercent !== null ? `Weekly ${snapshot.weeklyPercent}%` : null,
+        snapshot.spendPercent !== null ? `Spend ${snapshot.spendPercent}%` : null,
+      ].filter((part): part is string => part !== null)
+      percents.textContent = parts.length > 0 ? parts.join(' · ') : 'No data'
+      item.appendChild(percents)
+
+      usageList.appendChild(item)
+    })
+    container.appendChild(usageList)
   }
 
   const backButton = document.createElement('button')

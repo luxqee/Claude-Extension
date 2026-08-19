@@ -10,7 +10,7 @@ import {
   type SettingsState,
 } from './render'
 import type { Button } from '../shared/types'
-import type { InsertPromptRequest, InsertPromptResponse } from '../shared/messages'
+import type { InsertPromptRequest, InsertPromptResponse, GetUsageRequest, GetUsageResponse } from '../shared/messages'
 import { parseImportedButtons, serializeButtons } from '../shared/backup'
 import {
   loadOrgPrompts,
@@ -31,6 +31,7 @@ import {
   type OrgMember,
 } from '../shared/org-members'
 import type { ManageOrgState } from './ManageOrganisation'
+import { reportUsage, fetchOrgUsage, type OrgUsageSnapshot } from '../shared/usage-report'
 
 const toolService = new ToolService(new ChromeLocalStorageAdapter())
 const authAdapter = new GoogleAuthAdapter()
@@ -51,6 +52,9 @@ let manageOrgAddError: string | null = null
 let orgPrompts: OrgPrompt[] = []
 let editingPromptId: string | null = null
 let promptFormError: string | null = null
+let orgUsageSnapshots: OrgUsageSnapshot[] = []
+const USAGE_REPORT_INTERVAL_MS = 15 * 60 * 1000
+let usageReportTimer: ReturnType<typeof setInterval> | null = null
 const TEAM_RUN_KEY = '__team_prompt_run__'
 const runState = new Map<string, RunState>()
 const settingsState: SettingsState = { error: null, successCount: null }
@@ -83,6 +87,7 @@ async function resolveOrgSession(root: HTMLElement): Promise<void> {
     }
     orgSession = null
     teamPrompts = { orgName: null, prompts: [] }
+    stopUsageReportTimer()
     if (view.mode === 'list') await refresh(root)
     return
   }
@@ -101,8 +106,10 @@ async function resolveOrgSession(root: HTMLElement): Promise<void> {
     const result = await loadOrgPrompts(idToken)
     if (session !== startedForSession) return
     teamPrompts = result
+    startUsageReportTimer()
   } else {
     teamPrompts = { orgName: null, prompts: [] }
+    stopUsageReportTimer()
   }
   if (view.mode === 'list') await refresh(root)
 }
@@ -123,6 +130,42 @@ async function refreshOrgPrompts(root: HTMLElement): Promise<void> {
   if (view.mode === 'manage-org') await refresh(root)
 }
 
+async function refreshOrgUsage(root: HTMLElement): Promise<void> {
+  const idToken = await authAdapter.getValidIdToken()
+  if (!idToken) return
+  const snapshots = await fetchOrgUsage(idToken)
+  if (snapshots) orgUsageSnapshots = snapshots
+  if (view.mode === 'manage-org') await refresh(root)
+}
+
+async function reportCurrentUsage(): Promise<void> {
+  const idToken = await authAdapter.getValidIdToken()
+  if (!idToken) return
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    if (!tab?.id || !tab.url) return
+    const response = await chrome.tabs.sendMessage<GetUsageRequest, GetUsageResponse>(tab.id, {
+      type: 'GET_USAGE',
+    })
+    if (response.ok) await reportUsage(idToken, response.usage)
+  } catch (error) {
+    console.error('[Claude Tools] failed to report usage', error)
+  }
+}
+
+function startUsageReportTimer(): void {
+  if (usageReportTimer) return
+  void reportCurrentUsage()
+  usageReportTimer = setInterval(() => void reportCurrentUsage(), USAGE_REPORT_INTERVAL_MS)
+}
+
+function stopUsageReportTimer(): void {
+  if (usageReportTimer) {
+    clearInterval(usageReportTimer)
+    usageReportTimer = null
+  }
+}
+
 async function refresh(root: HTMLElement): Promise<void> {
   try {
     const buttons = await toolService.listButtons()
@@ -141,6 +184,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         prompts: orgPrompts,
         editingPromptId,
         promptFormError,
+        usageSnapshots: orgUsageSnapshots,
       },
       {
       onRun: async (button: Button) => {
@@ -338,6 +382,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         await authAdapter.signOut()
         await clearCachedOrgPrompts()
         session = null
+        stopUsageReportTimer()
         orgSession = null
         teamPrompts = { orgName: null, prompts: [] }
         if (view.mode === 'org-onboarding') view = { mode: 'list' }
@@ -365,6 +410,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         await authAdapter.signOut()
         await clearCachedOrgPrompts()
         session = null
+        stopUsageReportTimer()
         orgSession = null
         teamPrompts = { orgName: null, prompts: [] }
         view = { mode: 'list' }
@@ -376,6 +422,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         void refresh(root)
         void refreshOrgMembers(root)
         void refreshOrgPrompts(root)
+        void refreshOrgUsage(root)
       },
       onManageOrgBack: () => {
         manageOrgAddError = null
