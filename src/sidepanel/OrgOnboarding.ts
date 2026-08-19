@@ -14,7 +14,7 @@ export function renderOrgOnboarding(context: OrgOnboardingContext): HTMLElement 
 
   const hint = document.createElement('p')
   hint.className = 'settings-hint'
-  hint.textContent = 'No organisation exists yet for your email. Name yours to become its director.'
+  hint.textContent = 'No organisation exists yet for your email. Name yours to become its admin.'
   container.appendChild(hint)
 
   const form = document.createElement('form')

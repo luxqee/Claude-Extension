@@ -68,7 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         WHERE org_id = ${director.orgId} AND role = 'director' AND status = 'active' AND lower(email) != lower(${targetEmail})
       `) as { count: number }[]
       if (isLastActiveDirector(target, otherDirectorRows[0]?.count ?? 0)) {
-        res.status(400).json({ error: 'cannot remove the last director' })
+        res.status(400).json({ error: 'cannot remove the last admin' })
         return
       }
     }

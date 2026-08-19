@@ -188,7 +188,7 @@ export function renderApp(
   if (orgSession?.state === 'pending') {
     const banner = document.createElement('p')
     banner.className = 'org-pending-banner'
-    banner.textContent = "You're signed in. Waiting for a director to approve you."
+    banner.textContent = "You're signed in. Waiting for an admin to approve you."
     root.appendChild(banner)
   } else if (
     // `orgSession === null` means unresolved -- the /api/org-session call

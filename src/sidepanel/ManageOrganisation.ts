@@ -53,7 +53,7 @@ export function renderManageOrganisation(state: ManageOrgState, context: ManageO
     const status = document.createElement('span')
     status.className = 'roster-row-status'
     status.textContent =
-      member.status === 'pending' ? 'Pending' : member.role === 'director' ? 'Director' : 'Member'
+      member.status === 'pending' ? 'Pending' : member.role === 'director' ? 'Admin' : 'Member'
     item.appendChild(status)
 
     const actions = document.createElement('div')
@@ -70,14 +70,14 @@ export function renderManageOrganisation(state: ManageOrgState, context: ManageO
       const promoteButton = document.createElement('button')
       promoteButton.type = 'button'
       promoteButton.className = 'settings-action-button'
-      promoteButton.textContent = 'Make director'
+      promoteButton.textContent = 'Make admin'
       promoteButton.addEventListener('click', () => context.onPromote(member.email))
       actions.appendChild(promoteButton)
     } else {
       const demoteButton = document.createElement('button')
       demoteButton.type = 'button'
       demoteButton.className = 'settings-action-button'
-      demoteButton.textContent = 'Remove director role'
+      demoteButton.textContent = 'Remove admin role'
       demoteButton.addEventListener('click', () => context.onDemote(member.email))
       actions.appendChild(demoteButton)
     }
