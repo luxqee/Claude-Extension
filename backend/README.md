@@ -84,3 +84,25 @@ Authorization: Bearer <google-id-token>
 200 -> { "org": null, "prompts": [] }   // token verifies, but no org matches the domain yet
 401 -> token missing or invalid
 ```
+
+```
+POST /api/org-session
+Authorization: Bearer <google-id-token>
+
+200 -> { "state": "active", "org": { "id": "...", "name": "..." }, "role": "director" | "member" }
+200 -> { "state": "pending", "org": { "id": "...", "name": "..." } }
+200 -> { "state": "needs_onboarding" }
+401 -> token missing or invalid
+```
+
+```
+POST /api/org-onboarding
+Authorization: Bearer <google-id-token>
+Body: { "orgName": "...", "initialMemberEmails": ["...", "..."] }
+
+200 -> { "outcome": "created", "org": { "id": "...", "name": "..." }, "role": "director" }
+200 -> { "outcome": "joined_existing", "org": { "id": "...", "name": "..." } }
+400 -> orgName missing/empty, or invalid email
+401 -> token missing or invalid
+409 -> already a member of an organization
+```
