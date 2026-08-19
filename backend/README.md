@@ -106,3 +106,15 @@ Body: { "orgName": "...", "initialMemberEmails": ["...", "..."] }
 401 -> token missing or invalid
 409 -> already a member of an organization
 ```
+
+```
+GET  /api/org-members                                    (director-only)
+Authorization: Bearer <google-id-token>
+200 -> { "members": [ { "email", "role", "status", "createdAt" } ] }
+403 -> caller is not an active director
+
+POST /api/org-members-approve   { "email": "..." }        (director-only) -> 204
+POST /api/org-members-remove    { "email": "..." }        (director-only) -> 204 | 400 (last director)
+POST /api/org-members-add       { "email": "..." }        (director-only) -> 204
+POST /api/org-members-set-role  { "email": "...", "role": "director" | "member" }  (director-only) -> 204 | 400 (last director)
+```
