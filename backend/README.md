@@ -124,3 +124,15 @@ POST   /api/org-prompts        { "name", "promptText", "type" }         (directo
 PATCH  /api/org-prompts/:id    { "name"?, "promptText"?, "type"? }        (director-only) -> 204
 DELETE /api/org-prompts/:id                                               (director-only) -> 204
 ```
+
+```
+POST /api/usage-report
+Authorization: Bearer <google-id-token>
+Body: { "sessionPercent": number | null, "weeklyPercent": number | null, "spendPercent": number | null }
+204 -> accepted
+403 -> caller is not an active organization member
+
+GET /api/org-usage   (director-only)
+Authorization: Bearer <google-id-token>
+200 -> { "snapshots": [ { "email", "sessionPercent", "weeklyPercent", "spendPercent", "updatedAt" } ] }
+```
