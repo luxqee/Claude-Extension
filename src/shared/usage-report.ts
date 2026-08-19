@@ -7,14 +7,23 @@ export interface UsageReportBody {
   spendPercent: number | null
 }
 
+// claude.ai reports fractional percentages, but usage_snapshots' percent
+// columns are `integer` -- sending a fractional value would make Postgres
+// reject the insert and the whole report would fail. Round here, matching
+// what the content-script usage widget already does for display.
+function toIntegerPercent(percent: number | undefined): number | null {
+  if (typeof percent !== 'number' || !Number.isFinite(percent)) return null
+  return Math.round(percent)
+}
+
 export function usageSnapshotToReportBody(snapshot: UsageSnapshot): UsageReportBody {
   const session = snapshot.meters.find((m) => m.label === 'Session')
   const weekly = snapshot.meters.find((m) => m.label === 'Weekly')
   const spend = snapshot.meters.find((m) => m.label === 'Extra usage')
   return {
-    sessionPercent: session?.percent ?? null,
-    weeklyPercent: weekly?.percent ?? null,
-    spendPercent: spend?.percent ?? null,
+    sessionPercent: toIntegerPercent(session?.percent),
+    weeklyPercent: toIntegerPercent(weekly?.percent),
+    spendPercent: toIntegerPercent(spend?.percent),
   }
 }
 

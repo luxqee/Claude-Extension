@@ -34,6 +34,30 @@ describe('usageSnapshotToReportBody', () => {
     })
   })
 
+  it('rounds fractional percentages to integers (the DB columns are integer)', () => {
+    const snapshot = {
+      meters: [
+        { label: 'Session', percent: 12.4, severity: 'normal', resetsAt: null },
+        { label: 'Weekly', percent: 25.5, severity: 'normal', resetsAt: null },
+        { label: 'Extra usage', percent: 73.99, severity: 'normal', resetsAt: null },
+      ],
+    }
+    expect(usageSnapshotToReportBody(snapshot)).toEqual({
+      sessionPercent: 12,
+      weeklyPercent: 26,
+      spendPercent: 74,
+    })
+  })
+
+  it('reports null for a non-finite percent rather than sending NaN', () => {
+    const snapshot = { meters: [{ label: 'Session', percent: Number.NaN, severity: 'normal', resetsAt: null }] }
+    expect(usageSnapshotToReportBody(snapshot)).toEqual({
+      sessionPercent: null,
+      weeklyPercent: null,
+      spendPercent: null,
+    })
+  })
+
   it('ignores an unrecognized meter label', () => {
     const snapshot = { meters: [{ label: 'Mystery', percent: 50, severity: 'normal', resetsAt: null }] }
     expect(usageSnapshotToReportBody(snapshot)).toEqual({
