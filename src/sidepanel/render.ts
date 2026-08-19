@@ -3,9 +3,15 @@ import { renderButtonRow } from './ButtonRow'
 import { renderEditForm } from './EditForm'
 import { renderSettingsPanel } from './SettingsPanel'
 import { renderTeamSection } from './TeamSection'
+import { renderOrgOnboarding } from './OrgOnboarding'
 import type { OrgPrompt, OrgPromptsResult } from '../shared/org-prompts'
+import type { OrgSessionState } from '../shared/org-session'
 
-export type View = { mode: 'list' } | { mode: 'form'; button: Button | null } | { mode: 'settings' }
+export type View =
+  | { mode: 'list' }
+  | { mode: 'form'; button: Button | null }
+  | { mode: 'settings' }
+  | { mode: 'org-onboarding' }
 
 export interface RunState {
   isRunning: boolean
@@ -33,6 +39,8 @@ export interface RenderContext {
   onSignIn: () => void
   onSignOut: () => void
   onRunTeamPrompt: (prompt: OrgPrompt) => void
+  onOnboardingSubmit: (data: { orgName: string; initialMemberEmails: string[] }) => void
+  onOnboardingCancel: () => void
 }
 
 export function withMovedId(
@@ -64,6 +72,7 @@ export function renderApp(
   runState: Map<string, RunState>,
   settingsState: SettingsState,
   session: { email: string } | null,
+  orgSession: OrgSessionState | null,
   teamPrompts: OrgPromptsResult,
   context: RenderContext,
 ): void {
@@ -86,6 +95,13 @@ export function renderApp(
         onSignIn: context.onSignIn,
         onSignOut: context.onSignOut,
       }),
+    )
+    return
+  }
+
+  if (view.mode === 'org-onboarding') {
+    root.appendChild(
+      renderOrgOnboarding({ onSubmit: context.onOnboardingSubmit, onCancel: context.onOnboardingCancel }),
     )
     return
   }
@@ -133,7 +149,12 @@ export function renderApp(
   })
   root.appendChild(list)
 
-  if (session && teamPrompts.prompts.length > 0) {
+  if (orgSession?.state === 'pending') {
+    const banner = document.createElement('p')
+    banner.className = 'org-pending-banner'
+    banner.textContent = "You're signed in. Waiting for a director to approve you."
+    root.appendChild(banner)
+  } else if (orgSession?.state === 'active' && teamPrompts.prompts.length > 0) {
     root.appendChild(
       renderTeamSection(teamPrompts.orgName ?? 'Team', teamPrompts.prompts, context.onRunTeamPrompt),
     )

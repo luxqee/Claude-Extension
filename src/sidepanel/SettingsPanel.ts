@@ -36,13 +36,13 @@ export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement 
     const signInButton = document.createElement('button')
     signInButton.type = 'button'
     signInButton.className = 'settings-action-button'
-    signInButton.textContent = 'Sign in with Google'
+    signInButton.textContent = 'Sign in with your organisation'
     signInButton.addEventListener('click', context.onSignIn)
     authSection.appendChild(signInButton)
 
     const signInHint = document.createElement('p')
     signInHint.className = 'settings-hint'
-    signInHint.textContent = "See your company's shared prompts, if your organization has set them up."
+    signInHint.textContent = 'Uses your work Google account to find or set up your organisation.'
     authSection.appendChild(signInHint)
   }
   container.appendChild(authSection)

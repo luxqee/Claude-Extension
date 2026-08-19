@@ -18,6 +18,7 @@ import {
   type OrgPrompt,
   type OrgPromptsResult,
 } from '../shared/org-prompts'
+import { fetchOrgSession, submitOrgOnboarding, type OrgSessionState } from '../shared/org-session'
 
 const toolService = new ToolService(new ChromeLocalStorageAdapter())
 const authAdapter = new GoogleAuthAdapter()
@@ -32,6 +33,7 @@ const root: HTMLElement = rootElement
 let view: View = { mode: 'list' }
 let session: { email: string } | null = null
 let teamPrompts: OrgPromptsResult = { orgName: null, prompts: [] }
+let orgSession: OrgSessionState | null = null
 const TEAM_RUN_KEY = '__team_prompt_run__'
 const runState = new Map<string, RunState>()
 const settingsState: SettingsState = { error: null, successCount: null }
@@ -50,36 +52,48 @@ function announce(message: string): void {
   if (region) region.textContent = message
 }
 
-async function refreshTeamPrompts(root: HTMLElement): Promise<void> {
+async function resolveOrgSession(root: HTMLElement): Promise<void> {
   const startedForSession = session
   const idToken = await authAdapter.getValidIdToken()
   if (session !== startedForSession) return
   if (!idToken) {
-    // getValidIdToken() already cleared the stored session if the silent
-    // refresh failed outright -- check whether that happened so we only
-    // prompt the user to sign in again when it's actually needed, not on
-    // every call (e.g. a call made while genuinely signed out already).
     const stillSignedIn = await authAdapter.getCurrentSession()
     if (session !== startedForSession) return
     if (session && !stillSignedIn) {
       session = null
       await clearCachedOrgPrompts()
-      announce('Please sign in again to see your team prompts.')
+      announce('Please sign in again to see your organisation.')
     }
+    orgSession = null
     teamPrompts = { orgName: null, prompts: [] }
     if (view.mode === 'list') await refresh(root)
     return
   }
-  const result = await loadOrgPrompts(idToken)
+
+  const resolution = await fetchOrgSession(idToken)
   if (session !== startedForSession) return
-  teamPrompts = result
+  orgSession = resolution
+
+  if (resolution?.state === 'needs_onboarding') {
+    view = { mode: 'org-onboarding' }
+    await refresh(root)
+    return
+  }
+
+  if (resolution?.state === 'active') {
+    const result = await loadOrgPrompts(idToken)
+    if (session !== startedForSession) return
+    teamPrompts = result
+  } else {
+    teamPrompts = { orgName: null, prompts: [] }
+  }
   if (view.mode === 'list') await refresh(root)
 }
 
 async function refresh(root: HTMLElement): Promise<void> {
   try {
     const buttons = await toolService.listButtons()
-    renderApp(root, buttons, view, runState, settingsState, session, teamPrompts, {
+    renderApp(root, buttons, view, runState, settingsState, session, orgSession, teamPrompts, {
       onRun: async (button: Button) => {
         const alreadyRunning = [...runState.values()].some((state) => state.isRunning)
         if (alreadyRunning) return
@@ -265,7 +279,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           session = { email: result.email }
           announce(`Signed in as ${result.email}`)
           await refresh(root)
-          void refreshTeamPrompts(root)
+          void resolveOrgSession(root)
         } else {
           announce('Sign in was not completed.')
           await refresh(root)
@@ -275,7 +289,36 @@ async function refresh(root: HTMLElement): Promise<void> {
         await authAdapter.signOut()
         await clearCachedOrgPrompts()
         session = null
+        orgSession = null
         teamPrompts = { orgName: null, prompts: [] }
+        if (view.mode === 'org-onboarding') view = { mode: 'list' }
+        await refresh(root)
+      },
+      onOnboardingSubmit: async (data: { orgName: string; initialMemberEmails: string[] }) => {
+        const idToken = await authAdapter.getValidIdToken()
+        if (!idToken) {
+          announce('Please sign in again to set up your organisation.')
+          view = { mode: 'list' }
+          await refresh(root)
+          return
+        }
+        const result = await submitOrgOnboarding(idToken, data.orgName, data.initialMemberEmails)
+        if (!result) {
+          announce('Something went wrong setting up your organisation. Check the console for details.')
+          return
+        }
+        view = { mode: 'list' }
+        announce(result.outcome === 'created' ? `${result.org.name} created.` : `Joined ${result.org.name}.`)
+        await refresh(root)
+        void resolveOrgSession(root)
+      },
+      onOnboardingCancel: async () => {
+        await authAdapter.signOut()
+        await clearCachedOrgPrompts()
+        session = null
+        orgSession = null
+        teamPrompts = { orgName: null, prompts: [] }
+        view = { mode: 'list' }
         await refresh(root)
       },
       onRunTeamPrompt: async (prompt: OrgPrompt) => {
@@ -330,7 +373,7 @@ async function refresh(root: HTMLElement): Promise<void> {
 async function start(): Promise<void> {
   session = await authAdapter.getCurrentSession()
   await refresh(root)
-  if (session) void refreshTeamPrompts(root)
+  if (session) void resolveOrgSession(root)
 }
 
 void start()
