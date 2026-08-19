@@ -24,3 +24,13 @@ alter table prompts force row level security;
 create policy org_isolation on prompts
   for select
   using (org_id = current_setting('app.current_org_id', true)::uuid);
+
+-- FORCE (above) also applies to INSERT/UPDATE/DELETE for the owning role,
+-- and RLS default-denies any command with no matching policy. This table
+-- has no application write path (the API is read-only) -- the only writer
+-- is a trusted human seeding data via direct database access, which is
+-- exactly this slice's documented design, so an unconditional insert
+-- policy doesn't weaken the SELECT isolation guarantee above.
+create policy org_insert on prompts
+  for insert
+  with check (true);
