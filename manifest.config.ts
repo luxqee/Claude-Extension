@@ -24,8 +24,8 @@ const manifest: ExtensionManifest = {
   name: 'Claude Tools Sidebar',
   version: '0.1.0',
   description: 'Configurable prompt buttons for claude.ai, run from a sidebar.',
-  permissions: ['sidePanel', 'storage', 'scripting'],
-  host_permissions: ['https://claude.ai/*'],
+  permissions: ['sidePanel', 'storage', 'scripting', 'identity'],
+  host_permissions: ['https://claude.ai/*', 'https://claude-extension-git-main-luxqees-projects.vercel.app/*'],
   background: {
     service_worker: 'src/background/service-worker.ts',
     type: 'module',
