@@ -120,9 +120,19 @@ returns its prompts. No write endpoint exists in this slice.
   ```
 
   This slice implements `GoogleAuthAdapter`, using
-  `chrome.identity.getAuthToken()`. A future `WorkOSAuthAdapter` (or
-  similar) implements the same interface for enterprise federation,
-  without any change to the UI layer that consumes it.
+  `chrome.identity.launchWebAuthFlow()` with `response_type=id_token`.
+  **Correction (2026-08-19, before Phase 2C implementation):** this spec
+  originally named `chrome.identity.getAuthToken()` for this purpose.
+  That was wrong — `getAuthToken()` returns an OAuth *access* token, not
+  an ID token, and the backend's `verifyIdToken()` (already built and
+  reviewed in Phase 2B) specifically requires a signed ID token (JWT).
+  `launchWebAuthFlow()`, given an explicit `response_type=id_token` in
+  the authorization URL, is the mechanism that actually returns one.
+  This keeps the already-hardened backend unchanged; only the
+  extension-side token acquisition differs from what was originally
+  written here. A future `WorkOSAuthAdapter` (or similar) implements the
+  same `AuthAdapter` interface for enterprise federation, without any
+  change to the UI layer that consumes it.
 
 - **`src/shared/org-prompts.ts`** (new) — a read-only counterpart to
   `ToolService`, fetching and caching the org's prompt list. Deliberately
@@ -144,7 +154,7 @@ returns its prompts. No write endpoint exists in this slice.
 
 1. User clicks "Sign in" in Settings.
 2. `GoogleAuthAdapter.signIn()` obtains a Google ID token via
-   `chrome.identity.getAuthToken()`.
+   `chrome.identity.launchWebAuthFlow()` (see the correction above).
 3. The extension calls `GET /api/org-prompts` with that token.
 4. The API verifies the token, resolves the org from the email domain,
    and returns its prompts (an empty list if no org matches yet — this
