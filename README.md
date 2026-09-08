@@ -33,29 +33,94 @@ automatically.
 ## Installing (unpacked, for now)
 
 This extension isn't published to the Chrome Web Store yet, so it's
-loaded as an unpacked extension from a local build:
+loaded as an unpacked extension from a local build. These steps are the
+same on every computer — macOS, Windows, or Linux — the only difference
+is how you install the two prerequisites (Node.js and pnpm).
 
-1. Install dependencies and build:
+### 1. Install prerequisites (first time on a given computer only)
+
+**macOS:**
+
+1. Open **Terminal** (Spotlight search → type "Terminal" → Enter, or
+   Applications → Utilities → Terminal).
+2. If you don't already have [Homebrew](https://brew.sh) installed, install
+   it by pasting this into Terminal and pressing Enter (it will ask for
+   your Mac password):
 
    ```bash
-   pnpm install
-   pnpm run build
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
    ```
 
-   This produces a `dist/` folder — that's what Chrome loads, not the
-   repo root.
+3. Install Node.js, pnpm, and git:
 
-2. In Chrome, go to `chrome://extensions`, turn on **Developer mode**
-   (top right), click **Load unpacked**, and select the `dist/` folder.
+   ```bash
+   brew install node pnpm git
+   ```
 
-3. Open [claude.ai](https://claude.ai). The extension's icon becomes
-   active on claude.ai pages only; click it to open the sidebar (or it
-   opens automatically depending on your Chrome version's side panel
-   behavior).
+**Windows:** install [Node.js](https://nodejs.org) (LTS version), then
+enable pnpm via `corepack enable` in a terminal (or `npm install -g pnpm`).
+Git is bundled with [Git for Windows](https://git-scm.com/download/win).
+
+### 2. Get the code
+
+```bash
+git clone https://github.com/luxqee/Claude-Extension.git
+cd Claude-Extension
+```
+
+(Already have it cloned on this computer? Just `cd` into that folder and
+run `git pull` instead, to get the latest changes.)
+
+### 3. Install dependencies and build
+
+```bash
+pnpm install
+pnpm run build
+```
+
+This produces a `dist/` folder — that's what Chrome loads, not the repo
+root.
+
+### 4. Load it into Chrome
+
+In Chrome, go to `chrome://extensions`, turn on **Developer mode**
+(top right), click **Load unpacked**, and select the `dist/` folder.
+
+Chrome will show an **ID** under the extension's name — it should read
+`fhaeedmmhjjkhnopifppigddjbbmdegh`. This ID is pinned in the code (via
+the `key` field in `manifest.config.ts`) so it's identical no matter
+which computer loads this build — that's what makes step 5 below only
+ever need doing once, ever, rather than once per computer.
+
+### 5. Open claude.ai
+
+The extension's icon becomes active on claude.ai pages only; click it to
+open the sidebar (or it opens automatically depending on your Chrome
+version's side panel behavior).
 
 **After rebuilding** (`pnpm run build` again), go back to
 `chrome://extensions` and click the reload icon on the extension's card
 — Chrome doesn't pick up a new build automatically.
+
+### Google sign-in setup (one-time, only if it's not already working)
+
+Organisation sign-in (see [Organisations](#organisations) below) needs a
+Google OAuth redirect URI registered once, against the extension's ID
+above. If sign-in already works on a computer you've set up before, skip
+this — it'll keep working on every other computer too, since the ID
+never changes.
+
+If sign-in fails with an error mentioning `redirect_uri_mismatch`:
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com) →
+   **APIs & Services → Credentials** → open this project's OAuth 2.0
+   Client ID (type "Web app").
+2. Under **Authorized redirect URIs**, click **+ Add URI** and paste:
+   ```
+   https://fhaeedmmhjjkhnopifppigddjbbmdegh.chromiumapp.org/
+   ```
+3. Click **Save** at the bottom of the page, wait about a minute, then
+   try signing in again.
 
 ## Using it
 
