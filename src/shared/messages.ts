@@ -1,3 +1,5 @@
+import type { UsageSnapshot } from './usage'
+
 export interface InsertPromptRequest {
   type: 'INSERT_PROMPT'
   prompt: string
@@ -13,6 +15,4 @@ export interface GetUsageRequest {
   type: 'GET_USAGE'
 }
 
-export type GetUsageResponse =
-  | { ok: true; usage: { meters: { label: string; percent: number; severity: string; resetsAt: string | null }[] } }
-  | { ok: false }
+export type GetUsageResponse = { ok: true; usage: UsageSnapshot } | { ok: false }

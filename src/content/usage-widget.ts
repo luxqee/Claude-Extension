@@ -1,5 +1,6 @@
 import { fetchUsage } from './usage-client'
 import { pollFor } from './claude-adapter'
+import { formatResetLabel } from '../shared/usage'
 
 const ANCHOR_SELECTOR = '[data-testid="sidebar-recents"]'
 const WIDGET_ID = 'claude-tools-usage-widget'
@@ -12,7 +13,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg'
 const WIDGET_CSS = `
 #${WIDGET_ID} {
   margin: 10px 8px 8px;
-  padding: 10px 10px 20px;
+  padding: 10px 10px 14px;
   border-radius: 10px;
   background: #131210;
   border: 1px solid #262420;
@@ -49,14 +50,17 @@ const WIDGET_CSS = `
   color: #d8d6cf;
 }
 #${WIDGET_ID} .ctu-rings {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  justify-items: center;
   gap: 6px;
 }
 #${WIDGET_ID} .ctu-ring {
   position: relative;
-  width: 46px;
-  height: 46px;
+  width: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
 }
 #${WIDGET_ID} .ctu-ring svg {
@@ -85,7 +89,10 @@ const WIDGET_CSS = `
 }
 #${WIDGET_ID} .ctu-pct {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -99,6 +106,13 @@ const WIDGET_CSS = `
   margin-top: 3px;
   font-size: 9px;
   color: #8a877e;
+}
+#${WIDGET_ID} .ctu-reset {
+  display: block;
+  margin-top: 2px;
+  font-size: 8px;
+  color: #6b6862;
+  white-space: nowrap;
 }
 `
 
@@ -116,14 +130,30 @@ function ensureStyleInjected(): void {
   document.head.appendChild(style)
 }
 
-function renderRing(label: string, percent: number, severity: string): HTMLElement {
+function renderRing(
+  label: string,
+  percent: number,
+  severity: string,
+  resetLabel: string | null,
+  disabledReason: string | null,
+): HTMLElement {
   const wrap = document.createElement('div')
   wrap.className = 'ctu-ring'
   wrap.setAttribute('role', 'img')
 
-  const clamped = Math.min(100, Math.max(0, percent))
+  // A disabled meter (e.g. out of credits) has nothing meaningful to show a
+  // percentage for -- the ring renders empty (no fill) and the center shows
+  // a dash instead of "0%", which would misleadingly read as "used none".
+  const clamped = disabledReason ? 0 : Math.min(100, Math.max(0, percent))
   const roundedPct = Math.round(clamped)
-  wrap.setAttribute('aria-label', `${label}: ${roundedPct}%`)
+  wrap.setAttribute(
+    'aria-label',
+    disabledReason
+      ? `${label}: ${disabledReason}`
+      : resetLabel
+        ? `${label}: ${roundedPct}%, ${resetLabel}`
+        : `${label}: ${roundedPct}%`,
+  )
 
   const svg = document.createElementNS(SVG_NS, 'svg')
   svg.setAttribute('viewBox', '0 0 46 46')
@@ -149,7 +179,7 @@ function renderRing(label: string, percent: number, severity: string): HTMLEleme
 
   const pct = document.createElement('span')
   pct.className = 'ctu-pct'
-  pct.textContent = `${roundedPct}%`
+  pct.textContent = disabledReason ? '—' : `${roundedPct}%`
   wrap.appendChild(pct)
 
   const labelEl = document.createElement('span')
@@ -157,10 +187,24 @@ function renderRing(label: string, percent: number, severity: string): HTMLEleme
   labelEl.textContent = label
   wrap.appendChild(labelEl)
 
+  if (disabledReason) {
+    const reasonEl = document.createElement('span')
+    reasonEl.className = 'ctu-reset'
+    reasonEl.textContent = disabledReason
+    wrap.appendChild(reasonEl)
+  } else if (resetLabel) {
+    const resetEl = document.createElement('span')
+    resetEl.className = 'ctu-reset'
+    resetEl.textContent = resetLabel
+    wrap.appendChild(resetEl)
+  }
+
   return wrap
 }
 
-function buildWidget(meters: { label: string; percent: number; severity: string }[]): HTMLElement {
+function buildWidget(
+  meters: { label: string; percent: number; severity: string; resetsAt: string | null; disabledReason: string | null }[],
+): HTMLElement {
   const widget = document.createElement('div')
   widget.id = WIDGET_ID
 
@@ -184,10 +228,12 @@ function buildWidget(meters: { label: string; percent: number; severity: string 
 
   widget.appendChild(head)
 
+  const now = Date.now()
   const rings = document.createElement('div')
   rings.className = 'ctu-rings'
   meters.forEach((meter) => {
-    rings.appendChild(renderRing(meter.label, meter.percent, meter.severity))
+    const resetLabel = formatResetLabel(meter.resetsAt, now)
+    rings.appendChild(renderRing(meter.label, meter.percent, meter.severity, resetLabel, meter.disabledReason))
   })
   widget.appendChild(rings)
 

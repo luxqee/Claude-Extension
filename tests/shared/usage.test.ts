@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseUsageResponse } from '../../src/shared/usage'
+import { parseUsageResponse, formatResetLabel } from '../../src/shared/usage'
 
 const REAL_RESPONSE = {
   five_hour: {
@@ -60,12 +60,14 @@ describe('parseUsageResponse', () => {
       percent: 12,
       severity: 'normal',
       resetsAt: '2026-08-18T14:10:00.150665+00:00',
+      disabledReason: null,
     })
     expect(result.meters).toContainEqual({
       label: 'Weekly',
       percent: 25,
       severity: 'normal',
       resetsAt: '2026-08-19T23:00:00.150689+00:00',
+      disabledReason: null,
     })
   })
 
@@ -76,11 +78,46 @@ describe('parseUsageResponse', () => {
       percent: 73,
       severity: 'normal',
       resetsAt: null,
+      disabledReason: null,
     })
   })
 
-  it('omits the spend meter when spend.enabled is false', () => {
-    const response = { ...REAL_RESPONSE, spend: { ...REAL_RESPONSE.spend, enabled: false } }
+  it('includes a disabled "Extra usage" meter with a friendly reason when spend is disabled with one', () => {
+    // Real captured response: the user had extra usage before, ran out of
+    // credits, and claude.ai disabled it server-side rather than removing it.
+    const response = {
+      ...REAL_RESPONSE,
+      spend: {
+        used: { amount_minor: 413000, currency: 'AUD', exponent: 2 },
+        limit: null,
+        percent: 0,
+        severity: 'normal',
+        enabled: false,
+        disabled_reason: 'out_of_credits',
+      },
+    }
+    const result = parseUsageResponse(response)
+    expect(result.meters).toContainEqual({
+      label: 'Extra usage',
+      percent: 0,
+      severity: 'normal',
+      resetsAt: null,
+      disabledReason: 'Out of credits',
+    })
+  })
+
+  it('falls back to a humanized version of an unrecognized disabled_reason', () => {
+    const response = {
+      spend: { enabled: false, disabled_reason: 'some_new_reason', percent: 0, severity: 'normal' },
+    }
+    const result = parseUsageResponse(response)
+    expect(result.meters).toContainEqual(
+      expect.objectContaining({ label: 'Extra usage', disabledReason: 'some new reason' }),
+    )
+  })
+
+  it('omits the spend meter when spend.enabled is false and there is no disabled_reason', () => {
+    const response = { ...REAL_RESPONSE, spend: { ...REAL_RESPONSE.spend, enabled: false, disabled_reason: null } }
     const result = parseUsageResponse(response)
     expect(result.meters.find((m) => m.label === 'Extra usage')).toBeUndefined()
   })
@@ -108,7 +145,9 @@ describe('parseUsageResponse', () => {
       limits: [{ kind: 'mystery_limit', percent: 50, severity: 'normal', resets_at: null }],
     }
     const result = parseUsageResponse(response)
-    expect(result.meters).toEqual([{ label: 'mystery_limit', percent: 50, severity: 'normal', resetsAt: null }])
+    expect(result.meters).toEqual([
+      { label: 'mystery_limit', percent: 50, severity: 'normal', resetsAt: null, disabledReason: null },
+    ])
   })
 
   it('skips a limits entry missing a required field instead of throwing', () => {
@@ -125,5 +164,40 @@ describe('parseUsageResponse', () => {
     expect(parseUsageResponse(null)).toEqual({ meters: [] })
     expect(parseUsageResponse('not an object')).toEqual({ meters: [] })
     expect(parseUsageResponse(undefined)).toEqual({ meters: [] })
+  })
+})
+
+describe('formatResetLabel', () => {
+  const NOW = Date.parse('2026-08-18T12:00:00.000Z')
+
+  it('returns null when there is no reset time', () => {
+    expect(formatResetLabel(null, NOW)).toBeNull()
+  })
+
+  it('returns null for an unparseable timestamp', () => {
+    expect(formatResetLabel('not a date', NOW)).toBeNull()
+  })
+
+  it('reports "resets soon" for a time in the past', () => {
+    expect(formatResetLabel('2026-08-18T11:00:00.000Z', NOW)).toBe('resets soon')
+  })
+
+  it('reports "resets soon" for under a minute away', () => {
+    expect(formatResetLabel('2026-08-18T12:00:30.000Z', NOW)).toBe('resets soon')
+  })
+
+  it('reports minutes for under an hour away', () => {
+    expect(formatResetLabel('2026-08-18T12:05:00.000Z', NOW)).toBe('resets in 5m')
+    expect(formatResetLabel('2026-08-18T12:59:00.000Z', NOW)).toBe('resets in 59m')
+  })
+
+  it('reports hours for under a day away', () => {
+    expect(formatResetLabel('2026-08-18T13:30:00.000Z', NOW)).toBe('resets in 1h')
+    expect(formatResetLabel('2026-08-19T11:00:00.000Z', NOW)).toBe('resets in 23h')
+  })
+
+  it('reports days for a day or more away', () => {
+    expect(formatResetLabel('2026-08-19T13:00:00.000Z', NOW)).toBe('resets in 1d')
+    expect(formatResetLabel('2026-08-24T12:00:00.000Z', NOW)).toBe('resets in 6d')
   })
 })

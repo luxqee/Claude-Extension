@@ -5,9 +5,9 @@ describe('usageSnapshotToReportBody', () => {
   it('maps Session, Weekly, and Extra usage meters to their named fields', () => {
     const snapshot = {
       meters: [
-        { label: 'Session', percent: 12, severity: 'normal', resetsAt: null },
-        { label: 'Weekly', percent: 25, severity: 'normal', resetsAt: null },
-        { label: 'Extra usage', percent: 73, severity: 'normal', resetsAt: null },
+        { label: 'Session', percent: 12, severity: 'normal', resetsAt: null, disabledReason: null },
+        { label: 'Weekly', percent: 25, severity: 'normal', resetsAt: null, disabledReason: null },
+        { label: 'Extra usage', percent: 73, severity: 'normal', resetsAt: null, disabledReason: null },
       ],
     }
     expect(usageSnapshotToReportBody(snapshot)).toEqual({
@@ -18,7 +18,7 @@ describe('usageSnapshotToReportBody', () => {
   })
 
   it('reports null for a meter that is absent', () => {
-    const snapshot = { meters: [{ label: 'Session', percent: 12, severity: 'normal', resetsAt: null }] }
+    const snapshot = { meters: [{ label: 'Session', percent: 12, severity: 'normal', resetsAt: null, disabledReason: null }] }
     expect(usageSnapshotToReportBody(snapshot)).toEqual({
       sessionPercent: 12,
       weeklyPercent: null,
@@ -37,9 +37,9 @@ describe('usageSnapshotToReportBody', () => {
   it('rounds fractional percentages to integers (the DB columns are integer)', () => {
     const snapshot = {
       meters: [
-        { label: 'Session', percent: 12.4, severity: 'normal', resetsAt: null },
-        { label: 'Weekly', percent: 25.5, severity: 'normal', resetsAt: null },
-        { label: 'Extra usage', percent: 73.99, severity: 'normal', resetsAt: null },
+        { label: 'Session', percent: 12.4, severity: 'normal', resetsAt: null, disabledReason: null },
+        { label: 'Weekly', percent: 25.5, severity: 'normal', resetsAt: null, disabledReason: null },
+        { label: 'Extra usage', percent: 73.99, severity: 'normal', resetsAt: null, disabledReason: null },
       ],
     }
     expect(usageSnapshotToReportBody(snapshot)).toEqual({
@@ -50,7 +50,9 @@ describe('usageSnapshotToReportBody', () => {
   })
 
   it('reports null for a non-finite percent rather than sending NaN', () => {
-    const snapshot = { meters: [{ label: 'Session', percent: Number.NaN, severity: 'normal', resetsAt: null }] }
+    const snapshot = {
+      meters: [{ label: 'Session', percent: Number.NaN, severity: 'normal', resetsAt: null, disabledReason: null }],
+    }
     expect(usageSnapshotToReportBody(snapshot)).toEqual({
       sessionPercent: null,
       weeklyPercent: null,
@@ -59,7 +61,9 @@ describe('usageSnapshotToReportBody', () => {
   })
 
   it('ignores an unrecognized meter label', () => {
-    const snapshot = { meters: [{ label: 'Mystery', percent: 50, severity: 'normal', resetsAt: null }] }
+    const snapshot = {
+      meters: [{ label: 'Mystery', percent: 50, severity: 'normal', resetsAt: null, disabledReason: null }],
+    }
     expect(usageSnapshotToReportBody(snapshot)).toEqual({
       sessionPercent: null,
       weeklyPercent: null,
