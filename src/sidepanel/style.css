@@ -217,18 +217,20 @@ h1, h2, h3 {
   flex-shrink: 0;
 }
 
-/* The demo Alfabet subset is ASCII-only: it HAS @ + / . - _ and letters
-   and digits, but NOT arrows, ☰, ⚙, ↻ or the · middot. So these carry a
-   fallback AFTER Alfabet -- per-glyph, the browser uses Alfabet for
-   everything it can and only reaches the symbol font for the few marks
-   Alfabet lacks. Elements that only ever hold ASCII (emails, plain hints)
-   don't need to be listed here at all -- they inherit Alfabet from `*`. */
+/* Glyph-bearing UI (the + / ← ☰ ⚙ marks and the small meta lines that
+   carry a · ) renders from a symbol-complete system font. The demo Alfabet
+   subset is ASCII-only and draws these inconsistently or blank.
+   NOTE: plain-text elements -- member emails, prompt names, hints, email
+   inputs -- are deliberately NOT here: Alfabet has @ + . - _ and they read
+   better in the brand face. Only keep genuine icon carriers in this list. */
 .gi,
+.skill-badge,
 .drag-handle,
 .settings-button,
+.tab-chip-add,
 .roster-row-status,
 .runs-chart-caption {
-  font-family: var(--font-sans), "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols2", sans-serif;
+  font-family: "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols2", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 .team-section {
