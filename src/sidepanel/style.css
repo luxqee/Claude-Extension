@@ -1,38 +1,38 @@
 /* --- Alfabet (AIRE's typeface) -----------------------------------------
-   NOTE: these are the Fontspring DEMO files, which are licensed for
-   evaluation only. Swap them for AIRE's licensed webfonts before this
-   ships commercially. Vite fingerprints the URLs at build time. */
+   woff2, converted from the Alfabet OTFs. Replace with AIRE's officially
+   licensed woff2 web files before commercial release (same filenames or
+   update the src lines). Vite fingerprints the URLs at build time. */
 @font-face {
   font-family: 'Alfabet';
-  src: url('./fonts/Fontspring-DEMO-alfabet-regular.otf') format('opentype');
+  src: url('./fonts/alfabet-regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Alfabet';
-  src: url('./fonts/Fontspring-DEMO-alfabet-medium.otf') format('opentype');
+  src: url('./fonts/alfabet-medium.woff2') format('woff2');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Alfabet';
-  src: url('./fonts/Fontspring-DEMO-alfabet-semibold.otf') format('opentype');
+  src: url('./fonts/alfabet-semibold.woff2') format('woff2');
   font-weight: 600;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Alfabet';
-  src: url('./fonts/Fontspring-DEMO-alfabet-bold.otf') format('opentype');
+  src: url('./fonts/alfabet-bold.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Alfabet';
-  src: url('./fonts/Fontspring-DEMO-alfabet-extrabold.otf') format('opentype');
+  src: url('./fonts/alfabet-extrabold.woff2') format('woff2');
   font-weight: 800;
   font-style: normal;
   font-display: swap;
