@@ -2,3 +2,5 @@ node_modules/
 dist/
 .vite/
 *.local
+docs/stage2-considerations.md
+.superpowers/

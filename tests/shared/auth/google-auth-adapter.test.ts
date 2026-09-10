@@ -150,7 +150,7 @@ describe('exchangeIdTokenForSession', () => {
     )
     globalThis.fetch = fetchSpy as unknown as typeof fetch
     await exchangeIdTokenForSession('the-id-token')
-    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit]
     expect(init.method).toBe('POST')
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer the-id-token')
   })
