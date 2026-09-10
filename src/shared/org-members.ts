@@ -67,50 +67,42 @@ export async function fetchOrgMembers(idToken: string): Promise<OrgMember[] | nu
   return parseOrgMembersResponse(body)
 }
 
-export async function approveOrgMember(idToken: string, email: string): Promise<boolean> {
+// The member-mutation endpoints are one route now (org-members-add /
+// -approve / -remove / -set-role were folded into POST /api/org-members
+// with an `action` field, to stay under Vercel's 12-function Hobby cap).
+async function postMemberAction(
+  idToken: string,
+  payload: { action: 'add' | 'approve' | 'remove' | 'set-role'; email: string; role?: 'director' | 'member' },
+): Promise<Response | null> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/org-members-approve`, {
+    return await fetch(`${API_BASE_URL}/api/org-members`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify(payload),
     })
-    return response.ok
   } catch (error) {
-    console.error('[Claude Tools] failed to approve org member', error)
-    return false
+    console.error('[Claude Tools] org-members request failed', error)
+    return null
   }
+}
+
+export async function approveOrgMember(idToken: string, email: string): Promise<boolean> {
+  const response = await postMemberAction(idToken, { action: 'approve', email })
+  return response?.ok ?? false
 }
 
 export async function removeOrgMember(
   idToken: string,
   email: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/org-members-remove`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    })
-    if (response.ok) return { ok: true }
-    return { ok: false, error: await parseErrorMessage(response) }
-  } catch (error) {
-    console.error('[Claude Tools] failed to remove org member', error)
-    return { ok: false, error: 'Something went wrong. Check the console for details.' }
-  }
+  const response = await postMemberAction(idToken, { action: 'remove', email })
+  if (!response) return { ok: false, error: 'Something went wrong. Check the console for details.' }
+  return response.ok ? { ok: true } : { ok: false, error: await parseErrorMessage(response) }
 }
 
 export async function addOrgMember(idToken: string, email: string): Promise<boolean> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/org-members-add`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    })
-    return response.ok
-  } catch (error) {
-    console.error('[Claude Tools] failed to add org member', error)
-    return false
-  }
+  const response = await postMemberAction(idToken, { action: 'add', email })
+  return response?.ok ?? false
 }
 
 export async function setOrgMemberRole(
@@ -118,16 +110,7 @@ export async function setOrgMemberRole(
   email: string,
   role: 'director' | 'member',
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/org-members-set-role`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, role }),
-    })
-    if (response.ok) return { ok: true }
-    return { ok: false, error: await parseErrorMessage(response) }
-  } catch (error) {
-    console.error('[Claude Tools] failed to change org member role', error)
-    return { ok: false, error: 'Something went wrong. Check the console for details.' }
-  }
+  const response = await postMemberAction(idToken, { action: 'set-role', email, role })
+  if (!response) return { ok: false, error: 'Something went wrong. Check the console for details.' }
+  return response.ok ? { ok: true } : { ok: false, error: await parseErrorMessage(response) }
 }

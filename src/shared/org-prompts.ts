@@ -223,7 +223,7 @@ export interface UpdateOrgTabInput {
 
 export async function updateOrgTab(idToken: string, id: string, input: UpdateOrgTabInput): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/org-tabs/${encodeURIComponent(id)}`, {
+    const response = await fetch(`${API_BASE_URL}/api/org-tabs?id=${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
@@ -240,7 +240,7 @@ export async function deleteOrgTab(
   id: string,
 ): Promise<{ ok: true } | { ok: false; status: number }> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/org-tabs/${encodeURIComponent(id)}`, {
+    const response = await fetch(`${API_BASE_URL}/api/org-tabs?id=${encodeURIComponent(id)}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${idToken}` },
     })
@@ -253,10 +253,10 @@ export async function deleteOrgTab(
 
 export async function reorderOrgTabs(idToken: string, orderedIds: string[]): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/org-tabs-reorder`, {
+    const response = await fetch(`${API_BASE_URL}/api/org-tabs`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderedIds }),
+      body: JSON.stringify({ action: 'reorder', orderedIds }),
     })
     return response.ok
   } catch (error) {

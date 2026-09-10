@@ -161,14 +161,12 @@ Body: { "orgName": "...", "initialMemberEmails": ["...", "..."] }
 
 ```
 GET  /api/org-members                                    (director-only)
-Authorization: Bearer <google-id-token>
 200 -> { "members": [ { "email", "role", "status", "createdAt" } ] }
 403 -> caller is not an active director
 
-POST /api/org-members-approve   { "email": "..." }        (director-only) -> 204 | 404 (not in this org)
-POST /api/org-members-remove    { "email": "..." }        (director-only) -> 204 | 400 (last director)
-POST /api/org-members-add       { "email": "..." }        (director-only) -> 204
-POST /api/org-members-set-role  { "email": "...", "role": "director" | "member" }  (director-only) -> 204 | 400 (last director)
+POST /api/org-members   { "action", "email", "role"? }   (director-only)
+  action = "add" | "approve" | "remove" | "set-role"
+  -> 204 | 400 (last director / unknown action) | 404 (not in this org)
 ```
 
 ```
@@ -182,11 +180,11 @@ DELETE /api/org-prompts/:id                                               (direc
 ```
 
 ```
-POST   /api/org-tabs          { "name", "emoji"? }                        (director-only) -> 201
-PATCH  /api/org-tabs/:id      { "name"?, "emoji"? }                       (director-only) -> 204 | 404
-DELETE /api/org-tabs/:id                                                  (director-only) -> 204 | 400 (last tab) | 404
+POST   /api/org-tabs             { "name", "emoji"? }                     (director-only) -> 201
+POST   /api/org-tabs             { "action": "reorder", "orderedIds" }    (director-only) -> 204
+PATCH  /api/org-tabs?id=<id>     { "name"?, "emoji"? }                    (director-only) -> 204 | 404
+DELETE /api/org-tabs?id=<id>                                             (director-only) -> 204 | 400 (last tab) | 404
   -- the deleted tab's prompts move to the org's first remaining tab.
-POST   /api/org-tabs-reorder  { "orderedIds": ["...", "..."] }            (director-only) -> 204
 ```
 
 ```
