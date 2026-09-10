@@ -1,7 +1,11 @@
 /* --- Alfabet (AIRE's typeface) -----------------------------------------
-   woff2, converted from the Alfabet OTFs. Replace with AIRE's officially
-   licensed woff2 web files before commercial release (same filenames or
-   update the src lines). Vite fingerprints the URLs at build time. */
+   woff2, converted from the Fontspring DEMO Alfabet OTFs. The demo draws
+   most punctuation (! " # $ % & ' ( ) * + - / < = > @ [ \ ] ^ _ ` { | } ~)
+   and the digit 4 as a fixed placeholder shape, so those codepoints were
+   removed from the fonts' cmaps -- the browser now fills them per-glyph
+   from the --font-sans fallback chain. Replace with AIRE's officially
+   licensed woff2 before commercial release (same filenames) and this
+   stops mattering. Vite fingerprints the URLs at build time. */
 @font-face {
   font-family: 'Alfabet';
   src: url('./fonts/alfabet-regular.woff2') format('woff2');
@@ -217,19 +221,17 @@ h1, h2, h3 {
   flex-shrink: 0;
 }
 
-/* Glyph-bearing UI (the + / ← ☰ ⚙ marks and the small meta lines that
-   carry a · ) renders from a symbol-complete system font. The demo Alfabet
-   subset is ASCII-only and draws these inconsistently or blank.
-   NOTE: plain-text elements -- member emails, prompt names, hints, email
-   inputs -- are deliberately NOT here: Alfabet has @ + . - _ and they read
-   better in the brand face. Only keep genuine icon carriers in this list. */
+/* Icon carriers only. The demo Alfabet has no real glyph for + / ← ☰ ⚙
+   (they were stripped from its cmap so text elsewhere falls back per-glyph
+   to a system font); these elements are pure icons, so render the whole
+   element from a symbol-complete font. Plain text -- emails, names, hints,
+   the · in meta lines -- is deliberately NOT listed: it inherits Alfabet
+   and the browser fills the few missing marks from the --font-sans chain. */
 .gi,
 .skill-badge,
 .drag-handle,
 .settings-button,
-.tab-chip-add,
-.roster-row-status,
-.runs-chart-caption {
+.tab-chip-add {
   font-family: "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols2", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
@@ -1175,7 +1177,6 @@ select {
   border-radius: var(--radius-md);
   overflow: hidden;
   margin-bottom: 4px;
-  cursor: help;
 }
 
 .runs-chart-bar {
