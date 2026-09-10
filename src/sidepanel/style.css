@@ -911,6 +911,41 @@ h1, h2, h3 {
   background: var(--accent-solid-hover);
 }
 
+/* Outline buttons -- accent border + accent text, fill accent on hover
+   and press. Matches the AIRE "border-2 border-primary" treatment. */
+.settings-action-button,
+.roster-add-form button[type='submit'],
+.sort-toggle,
+.tab-strip-manage {
+  border: 2px solid var(--accent);
+  background: var(--surface-card);
+  color: var(--accent);
+}
+
+.settings-action-button:hover,
+.roster-add-form button[type='submit']:hover,
+.sort-toggle:hover,
+.tab-strip-manage:hover {
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
+  color: var(--accent-text-on);
+}
+
+.settings-action-button:active,
+.roster-add-form button[type='submit']:active,
+.sort-toggle:active,
+.tab-strip-manage:active {
+  background: var(--accent-solid-hover);
+  border-color: var(--accent-solid-hover);
+  color: var(--accent-text-on);
+}
+
+.sort-toggle[aria-pressed='true'] {
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
+  color: var(--accent-text-on);
+}
+
 .settings-heading {
   font-size: 17px;
   font-weight: 700;
@@ -1063,5 +1098,20 @@ select {
   background: var(--accent);
   border-radius: 2px 2px 0 0;
   opacity: 0.85;
+}
+
+/* Accent-outlined container -- AIRE border-2 border-primary card. */
+.accent-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.accent-panel .stat-tiles,
+.accent-panel .runs-chart {
+  margin: 0;
 }
 

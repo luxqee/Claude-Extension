@@ -431,11 +431,15 @@ function renderAnalytics(state: ManageOrgState): DocumentFragment {
   const totalRuns = a.perMember.reduce((sum, m) => sum + m.runCount, 0)
   const activeMembers = a.perMember.filter((m) => m.runCount > 0).length
 
+  // Accent-outlined panel, matching the AIRE border-2 border-primary card.
+  const panel = document.createElement('div')
+  panel.className = 'accent-panel'
+
   const tiles = document.createElement('div')
   tiles.className = 'stat-tiles'
   tiles.appendChild(statTile(String(totalRuns), 'Prompt runs'))
   tiles.appendChild(statTile(String(activeMembers), 'Active members'))
-  frag.appendChild(tiles)
+  panel.appendChild(tiles)
 
   // Runs over time -- a simple CSS bar strip for the last 30 days.
   if (a.dailyRuns.length > 0) {
@@ -450,13 +454,13 @@ function renderAnalytics(state: ManageOrgState): DocumentFragment {
       bar.title = `${d.day}: ${d.runCount}`
       chart.appendChild(bar)
     })
-    frag.appendChild(chart)
+    panel.appendChild(chart)
   }
 
   const topHeading = document.createElement('p')
   topHeading.className = 'settings-hint'
   topHeading.textContent = 'Top prompts'
-  frag.appendChild(topHeading)
+  panel.appendChild(topHeading)
 
   const topList = document.createElement('ul')
   topList.className = 'roster-list'
@@ -473,12 +477,12 @@ function renderAnalytics(state: ManageOrgState): DocumentFragment {
     item.appendChild(count)
     topList.appendChild(item)
   })
-  frag.appendChild(topList)
+  panel.appendChild(topList)
 
   const perHeading = document.createElement('p')
   perHeading.className = 'settings-hint'
   perHeading.textContent = 'Per member'
-  frag.appendChild(perHeading)
+  panel.appendChild(perHeading)
 
   const perList = document.createElement('ul')
   perList.className = 'roster-list'
@@ -495,8 +499,9 @@ function renderAnalytics(state: ManageOrgState): DocumentFragment {
     item.appendChild(count)
     perList.appendChild(item)
   })
-  frag.appendChild(perList)
+  panel.appendChild(perList)
 
+  frag.appendChild(panel)
   return frag
 }
 
