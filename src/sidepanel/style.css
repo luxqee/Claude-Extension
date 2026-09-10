@@ -104,14 +104,19 @@ body {
   color: var(--text-primary);
 }
 
-/* Form controls don't inherit the page font by default -- force it so
-   inputs, buttons, selects and placeholder text are all Alfabet. */
+/* Every element -- including form controls, which don't inherit
+   font-family by default -- renders in Alfabet. */
+*,
+::before,
+::after {
+  font-family: var(--font-sans);
+}
+
 button,
 input,
 textarea,
 select,
 optgroup {
-  font-family: var(--font-sans);
   font-size: inherit;
   line-height: inherit;
 }
