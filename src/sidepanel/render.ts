@@ -1,4 +1,5 @@
 import type { Button, ButtonType, ToolTab } from '../shared/types'
+import type { ButtonUsageMap } from '../shared/prompt-usage'
 import { renderButtonRow } from './ButtonRow'
 import { renderEditForm } from './EditForm'
 import { renderSettingsPanel } from './SettingsPanel'
@@ -22,6 +23,10 @@ export interface TabViewState {
   tabs: ToolTab[]
   activeTabId: string | null
   defaultTabId: string | null
+  sortMode: 'manual' | 'most-used'
+  buttonUsage: ButtonUsageMap
+  /** Every personal button across all tabs -- for tab-manager counts. */
+  allButtons: Button[]
 }
 
 export interface RunState {
@@ -44,6 +49,7 @@ export interface RenderContext {
   onSave: (data: { id: string | null; name: string; prompt: string; type: ButtonType; tabId: string }) => void
   onCancel: () => void
   onSelectTab: (tabId: string) => void
+  onToggleSort: () => void
   onAddTab: () => void
   onManageTabs: () => void
   onReorderTabs: (orderedIds: string[]) => void
@@ -68,8 +74,15 @@ export interface RenderContext {
   onPromoteMember: (email: string) => void
   onDemoteMember: (email: string) => void
   onAddMember: (email: string) => void
-  onCreatePrompt: (data: { name: string; promptText: string; type: 'prompt' | 'skill' }) => void
-  onUpdatePrompt: (id: string, data: { name: string; promptText: string; type: 'prompt' | 'skill' }) => void
+  onCreateOrgTab: (name: string) => void
+  onRenameOrgTab: (id: string, name: string, emoji: string | null) => void
+  onDeleteOrgTab: (id: string) => void
+  onMoveOrgTab: (id: string, direction: 'up' | 'down') => void
+  onCreatePrompt: (data: { name: string; promptText: string; type: 'prompt' | 'skill'; tabId: string }) => void
+  onUpdatePrompt: (
+    id: string,
+    data: { name: string; promptText: string; type: 'prompt' | 'skill'; tabId: string },
+  ) => void
   onDeletePrompt: (id: string) => void
   onEditPromptClick: (prompt: OrgPrompt) => void
   onCancelEditPrompt: () => void
@@ -124,7 +137,7 @@ export function renderApp(
 
   if (view.mode === 'tabs') {
     const buttonCountByTab: Record<string, number> = {}
-    for (const button of buttons) {
+    for (const button of tabState.allButtons) {
       buttonCountByTab[button.tabId] = (buttonCountByTab[button.tabId] ?? 0) + 1
     }
     root.appendChild(
@@ -175,6 +188,10 @@ export function renderApp(
         onPromote: context.onPromoteMember,
         onDemote: context.onDemoteMember,
         onAdd: context.onAddMember,
+        onCreateOrgTab: context.onCreateOrgTab,
+        onRenameOrgTab: context.onRenameOrgTab,
+        onDeleteOrgTab: context.onDeleteOrgTab,
+        onMoveOrgTab: context.onMoveOrgTab,
         onCreatePrompt: context.onCreatePrompt,
         onUpdatePrompt: context.onUpdatePrompt,
         onDeletePrompt: context.onDeletePrompt,
@@ -215,10 +232,23 @@ export function renderApp(
     )
   }
 
-  const visibleButtons =
-    tabState.activeTabId === null
-      ? buttons
-      : buttons.filter((button) => button.tabId === tabState.activeTabId)
+  // `buttons` arrives already scoped to the active tab and already sorted
+  // (manual order or most-used) by main.ts.
+  const visibleButtons = buttons
+
+  if (visibleButtons.length > 0 || tabState.sortMode === 'most-used') {
+    const sortRow = document.createElement('div')
+    sortRow.className = 'sort-row'
+    const sortToggle = document.createElement('button')
+    sortToggle.type = 'button'
+    sortToggle.className = 'sort-toggle'
+    sortToggle.textContent =
+      tabState.sortMode === 'most-used' ? 'Sorted by most used' : 'Sort by most used'
+    sortToggle.setAttribute('aria-pressed', String(tabState.sortMode === 'most-used'))
+    sortToggle.addEventListener('click', context.onToggleSort)
+    sortRow.appendChild(sortToggle)
+    root.appendChild(sortRow)
+  }
 
   if (visibleButtons.length === 0) {
     const empty = document.createElement('p')
@@ -237,6 +267,8 @@ export function renderApp(
       renderButtonRow(button, {
         isRunning: state.isRunning,
         runError: state.error,
+        usageCount: tabState.buttonUsage[button.id]?.count ?? 0,
+        reorderable: tabState.sortMode === 'manual',
         onRun: () => context.onRun(button),
         onEdit: () => context.onEdit(button),
         onDelete: () => context.onDelete(button),
@@ -263,7 +295,12 @@ export function renderApp(
     teamPrompts.prompts.length > 0
   ) {
     root.appendChild(
-      renderTeamSection(teamPrompts.orgName ?? 'Team', teamPrompts.prompts, context.onRunTeamPrompt),
+      renderTeamSection(
+        teamPrompts.orgName ?? 'Team',
+        teamPrompts.tabs,
+        teamPrompts.prompts,
+        context.onRunTeamPrompt,
+      ),
     )
   }
 }

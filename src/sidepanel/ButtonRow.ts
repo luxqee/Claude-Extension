@@ -3,6 +3,11 @@ import type { Button } from '../shared/types'
 export interface ButtonRowContext {
   isRunning: boolean
   runError: string | null
+  /** Personal run count; 0 hides the badge. */
+  usageCount?: number
+  /** When false, the drag handle is hidden and arrow-key reorder is off
+   * (the list is in most-used order, so manual order is meaningless). */
+  reorderable?: boolean
   onRun: () => void
   onEdit: () => void
   onDelete: () => void
@@ -22,31 +27,34 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
   const row = document.createElement('div')
   row.className = 'button-row'
 
-  const dragHandle = document.createElement('button')
-  dragHandle.type = 'button'
-  dragHandle.className = 'drag-handle'
-  dragHandle.textContent = '⠿'
-  dragHandle.dataset.buttonId = button.id
-  dragHandle.setAttribute('aria-label', `Reorder ${button.name}. Press arrow keys to move, or drag.`)
-  dragHandle.draggable = true
-  dragHandle.addEventListener('dragstart', (event) => {
-    event.dataTransfer?.setData('text/plain', button.id)
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
-    item.classList.add('dragging')
-  })
-  dragHandle.addEventListener('dragend', () => {
-    item.classList.remove('dragging')
-  })
-  dragHandle.addEventListener('keydown', (event) => {
-    if (event.key === 'ArrowUp') {
-      event.preventDefault()
-      context.onArrowMove('up')
-    } else if (event.key === 'ArrowDown') {
-      event.preventDefault()
-      context.onArrowMove('down')
-    }
-  })
-  row.appendChild(dragHandle)
+  const reorderable = context.reorderable ?? true
+  if (reorderable) {
+    const dragHandle = document.createElement('button')
+    dragHandle.type = 'button'
+    dragHandle.className = 'drag-handle'
+    dragHandle.textContent = '⠿'
+    dragHandle.dataset.buttonId = button.id
+    dragHandle.setAttribute('aria-label', `Reorder ${button.name}. Press arrow keys to move, or drag.`)
+    dragHandle.draggable = true
+    dragHandle.addEventListener('dragstart', (event) => {
+      event.dataTransfer?.setData('text/plain', button.id)
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
+      item.classList.add('dragging')
+    })
+    dragHandle.addEventListener('dragend', () => {
+      item.classList.remove('dragging')
+    })
+    dragHandle.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        context.onArrowMove('up')
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        context.onArrowMove('down')
+      }
+    })
+    row.appendChild(dragHandle)
+  }
 
   if (button.type === 'skill') {
     const badge = document.createElement('span')
@@ -64,6 +72,15 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
   name.disabled = context.isRunning
   name.addEventListener('click', context.onRun)
   row.appendChild(name)
+
+  const usageCount = context.usageCount ?? 0
+  if (usageCount > 0) {
+    const used = document.createElement('span')
+    used.className = 'button-row-usage'
+    used.textContent = usageCount > 99 ? '99+' : String(usageCount)
+    used.title = `Run ${usageCount} time${usageCount === 1 ? '' : 's'}`
+    row.appendChild(used)
+  }
 
   const controls = document.createElement('div')
   controls.className = 'button-row-controls'
@@ -87,22 +104,24 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
   row.appendChild(controls)
   item.appendChild(row)
 
-  item.addEventListener('dragover', (event) => {
-    event.preventDefault()
-    const isAfter = dropPosition(event, item) === 'after'
-    item.classList.toggle('drag-over-top', !isAfter)
-    item.classList.toggle('drag-over-bottom', isAfter)
-  })
-  item.addEventListener('dragleave', () => {
-    item.classList.remove('drag-over-top', 'drag-over-bottom')
-  })
-  item.addEventListener('drop', (event) => {
-    event.preventDefault()
-    item.classList.remove('drag-over-top', 'drag-over-bottom')
-    const draggedId = event.dataTransfer?.getData('text/plain')
-    if (!draggedId || draggedId === button.id) return
-    context.onDrop(draggedId, dropPosition(event, item))
-  })
+  if (reorderable) {
+    item.addEventListener('dragover', (event) => {
+      event.preventDefault()
+      const isAfter = dropPosition(event, item) === 'after'
+      item.classList.toggle('drag-over-top', !isAfter)
+      item.classList.toggle('drag-over-bottom', isAfter)
+    })
+    item.addEventListener('dragleave', () => {
+      item.classList.remove('drag-over-top', 'drag-over-bottom')
+    })
+    item.addEventListener('drop', (event) => {
+      event.preventDefault()
+      item.classList.remove('drag-over-top', 'drag-over-bottom')
+      const draggedId = event.dataTransfer?.getData('text/plain')
+      if (!draggedId || draggedId === button.id) return
+      context.onDrop(draggedId, dropPosition(event, item))
+    })
+  }
 
   if (context.isRunning) {
     const status = document.createElement('p')

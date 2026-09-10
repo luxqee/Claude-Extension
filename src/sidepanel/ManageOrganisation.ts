@@ -1,14 +1,17 @@
 import type { OrgMember } from '../shared/org-members'
-import type { OrgPrompt } from '../shared/org-prompts'
+import type { OrgPrompt, OrgTab } from '../shared/org-prompts'
 import type { OrgUsageSnapshot } from '../shared/usage-report'
+import type { OrgAnalytics } from '../shared/org-analytics'
 
 export interface ManageOrgState {
   members: OrgMember[]
   addError: string | null
+  orgTabs: OrgTab[]
   prompts: OrgPrompt[]
   editingPromptId: string | null
   promptFormError: string | null
   usageSnapshots: OrgUsageSnapshot[]
+  analytics: OrgAnalytics | null
 }
 
 export interface ManageOrganisationContext {
@@ -17,27 +20,31 @@ export interface ManageOrganisationContext {
   onPromote: (email: string) => void
   onDemote: (email: string) => void
   onAdd: (email: string) => void
-  onCreatePrompt: (data: { name: string; promptText: string; type: 'prompt' | 'skill' }) => void
-  onUpdatePrompt: (id: string, data: { name: string; promptText: string; type: 'prompt' | 'skill' }) => void
+  onCreateOrgTab: (name: string) => void
+  onRenameOrgTab: (id: string, name: string, emoji: string | null) => void
+  onDeleteOrgTab: (id: string) => void
+  onMoveOrgTab: (id: string, direction: 'up' | 'down') => void
+  onCreatePrompt: (data: { name: string; promptText: string; type: 'prompt' | 'skill'; tabId: string }) => void
+  onUpdatePrompt: (
+    id: string,
+    data: { name: string; promptText: string; type: 'prompt' | 'skill'; tabId: string },
+  ) => void
   onDeletePrompt: (id: string) => void
   onEditPromptClick: (prompt: OrgPrompt) => void
   onCancelEditPrompt: () => void
   onBack: () => void
 }
 
-export function renderManageOrganisation(state: ManageOrgState, context: ManageOrganisationContext): HTMLElement {
-  const container = document.createElement('div')
-  container.className = 'manage-org'
+function sectionHeading(text: string): HTMLElement {
+  const h = document.createElement('h3')
+  h.className = 'team-section-heading'
+  h.textContent = text
+  return h
+}
 
-  const heading = document.createElement('h2')
-  heading.className = 'settings-heading'
-  heading.textContent = 'Manage Organisation'
-  container.appendChild(heading)
-
-  const rosterHeading = document.createElement('h3')
-  rosterHeading.className = 'team-section-heading'
-  rosterHeading.textContent = 'Members'
-  container.appendChild(rosterHeading)
+function renderMembers(state: ManageOrgState, context: ManageOrganisationContext): DocumentFragment {
+  const frag = document.createDocumentFragment()
+  frag.appendChild(sectionHeading('Members'))
 
   const list = document.createElement('ul')
   list.className = 'roster-list'
@@ -60,39 +67,39 @@ export function renderManageOrganisation(state: ManageOrgState, context: ManageO
     actions.className = 'roster-row-actions'
 
     if (member.status === 'pending') {
-      const approveButton = document.createElement('button')
-      approveButton.type = 'button'
-      approveButton.className = 'settings-action-button'
-      approveButton.textContent = 'Approve'
-      approveButton.addEventListener('click', () => context.onApprove(member.email))
-      actions.appendChild(approveButton)
+      const approve = document.createElement('button')
+      approve.type = 'button'
+      approve.className = 'settings-action-button'
+      approve.textContent = 'Approve'
+      approve.addEventListener('click', () => context.onApprove(member.email))
+      actions.appendChild(approve)
     } else if (member.role === 'member') {
-      const promoteButton = document.createElement('button')
-      promoteButton.type = 'button'
-      promoteButton.className = 'settings-action-button'
-      promoteButton.textContent = 'Make admin'
-      promoteButton.addEventListener('click', () => context.onPromote(member.email))
-      actions.appendChild(promoteButton)
+      const promote = document.createElement('button')
+      promote.type = 'button'
+      promote.className = 'settings-action-button'
+      promote.textContent = 'Make admin'
+      promote.addEventListener('click', () => context.onPromote(member.email))
+      actions.appendChild(promote)
     } else {
-      const demoteButton = document.createElement('button')
-      demoteButton.type = 'button'
-      demoteButton.className = 'settings-action-button'
-      demoteButton.textContent = 'Remove admin role'
-      demoteButton.addEventListener('click', () => context.onDemote(member.email))
-      actions.appendChild(demoteButton)
+      const demote = document.createElement('button')
+      demote.type = 'button'
+      demote.className = 'settings-action-button'
+      demote.textContent = 'Remove admin role'
+      demote.addEventListener('click', () => context.onDemote(member.email))
+      actions.appendChild(demote)
     }
 
-    const removeButton = document.createElement('button')
-    removeButton.type = 'button'
-    removeButton.className = 'icon-button icon-button-danger'
-    removeButton.textContent = 'Remove'
-    removeButton.addEventListener('click', () => context.onRemove(member.email))
-    actions.appendChild(removeButton)
+    const remove = document.createElement('button')
+    remove.type = 'button'
+    remove.className = 'icon-button icon-button-danger'
+    remove.textContent = 'Remove'
+    remove.addEventListener('click', () => context.onRemove(member.email))
+    actions.appendChild(remove)
 
     item.appendChild(actions)
     list.appendChild(item)
   })
-  container.appendChild(list)
+  frag.appendChild(list)
 
   const addSection = document.createElement('div')
   addSection.className = 'settings-section'
@@ -110,9 +117,9 @@ export function renderManageOrganisation(state: ManageOrgState, context: ManageO
   addForm.appendChild(addButton)
   addForm.addEventListener('submit', (event) => {
     event.preventDefault()
-    const emailValue = addInput.value.trim()
-    if (!emailValue) return
-    context.onAdd(emailValue)
+    const value = addInput.value.trim()
+    if (!value) return
+    context.onAdd(value)
     addInput.value = ''
   })
   addSection.appendChild(addForm)
@@ -122,12 +129,118 @@ export function renderManageOrganisation(state: ManageOrgState, context: ManageO
     error.textContent = state.addError
     addSection.appendChild(error)
   }
-  container.appendChild(addSection)
+  frag.appendChild(addSection)
+  return frag
+}
 
-  const promptsHeading = document.createElement('h3')
-  promptsHeading.className = 'team-section-heading'
-  promptsHeading.textContent = 'Organisation prompts'
-  container.appendChild(promptsHeading)
+function renderSharedTabs(state: ManageOrgState, context: ManageOrganisationContext): DocumentFragment {
+  const frag = document.createDocumentFragment()
+  frag.appendChild(sectionHeading('Shared tabs'))
+
+  const list = document.createElement('ul')
+  list.className = 'tab-manager-list'
+  state.orgTabs.forEach((tab, index) => {
+    const row = document.createElement('li')
+    row.className = 'tab-manager-row'
+
+    const emoji = document.createElement('input')
+    emoji.type = 'text'
+    emoji.className = 'tab-manager-emoji'
+    emoji.value = tab.emoji ?? ''
+    emoji.maxLength = 2
+    emoji.setAttribute('aria-label', `Emoji for ${tab.name}`)
+
+    const name = document.createElement('input')
+    name.type = 'text'
+    name.className = 'tab-manager-name'
+    name.value = tab.name
+    name.setAttribute('aria-label', `Name for ${tab.name}`)
+
+    function commit(): void {
+      const nextName = name.value.trim()
+      const nextEmoji = emoji.value.trim() || null
+      if (nextName.length === 0) {
+        name.value = tab.name
+        return
+      }
+      if (nextName === tab.name && nextEmoji === (tab.emoji ?? null)) return
+      context.onRenameOrgTab(tab.id, nextName, nextEmoji)
+    }
+    name.addEventListener('blur', commit)
+    emoji.addEventListener('blur', commit)
+    name.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        ;(e.target as HTMLInputElement).blur()
+      }
+    })
+
+    row.appendChild(emoji)
+    row.appendChild(name)
+
+    const controls = document.createElement('div')
+    controls.className = 'tab-manager-controls'
+
+    const up = document.createElement('button')
+    up.type = 'button'
+    up.className = 'icon-button'
+    up.textContent = '↑'
+    up.setAttribute('aria-label', `Move ${tab.name} up`)
+    up.disabled = index === 0
+    up.addEventListener('click', () => context.onMoveOrgTab(tab.id, 'up'))
+    controls.appendChild(up)
+
+    const down = document.createElement('button')
+    down.type = 'button'
+    down.className = 'icon-button'
+    down.textContent = '↓'
+    down.setAttribute('aria-label', `Move ${tab.name} down`)
+    down.disabled = index === state.orgTabs.length - 1
+    down.addEventListener('click', () => context.onMoveOrgTab(tab.id, 'down'))
+    controls.appendChild(down)
+
+    const del = document.createElement('button')
+    del.type = 'button'
+    del.className = 'icon-button icon-button-danger'
+    del.textContent = 'Delete'
+    del.setAttribute('aria-label', `Delete ${tab.name}`)
+    del.disabled = state.orgTabs.length <= 1
+    del.addEventListener('click', () => context.onDeleteOrgTab(tab.id))
+    controls.appendChild(del)
+
+    row.appendChild(controls)
+    list.appendChild(row)
+  })
+  frag.appendChild(list)
+
+  const addForm = document.createElement('form')
+  addForm.className = 'roster-add-form'
+  const addInput = document.createElement('input')
+  addInput.type = 'text'
+  addInput.required = true
+  addInput.placeholder = 'New shared tab name'
+  addForm.appendChild(addInput)
+  const addButton = document.createElement('button')
+  addButton.type = 'submit'
+  addButton.className = 'settings-action-button'
+  addButton.textContent = 'Add tab'
+  addForm.appendChild(addButton)
+  addForm.addEventListener('submit', (event) => {
+    event.preventDefault()
+    const value = addInput.value.trim()
+    if (!value) return
+    context.onCreateOrgTab(value)
+    addInput.value = ''
+  })
+  frag.appendChild(addForm)
+  return frag
+}
+
+function renderPrompts(state: ManageOrgState, context: ManageOrganisationContext): DocumentFragment {
+  const frag = document.createDocumentFragment()
+  frag.appendChild(sectionHeading('Shared prompts'))
+
+  const tabNameById = new Map(state.orgTabs.map((t) => [t.id, t.name]))
 
   const promptsList = document.createElement('ul')
   promptsList.className = 'roster-list'
@@ -140,160 +253,296 @@ export function renderManageOrganisation(state: ManageOrgState, context: ManageO
     name.textContent = prompt.name
     item.appendChild(name)
 
-    const type = document.createElement('span')
-    type.className = 'roster-row-status'
-    type.textContent = prompt.type === 'skill' ? 'Skill' : 'Prompt'
-    item.appendChild(type)
+    const meta = document.createElement('span')
+    meta.className = 'roster-row-status'
+    const tabName = prompt.tabId ? tabNameById.get(prompt.tabId) : null
+    meta.textContent = `${prompt.type === 'skill' ? 'Skill' : 'Prompt'}${tabName ? ` · ${tabName}` : ''}`
+    item.appendChild(meta)
 
     const actions = document.createElement('div')
     actions.className = 'roster-row-actions'
 
-    const editButton = document.createElement('button')
-    editButton.type = 'button'
-    editButton.className = 'settings-action-button'
-    editButton.textContent = 'Edit'
-    editButton.addEventListener('click', () => context.onEditPromptClick(prompt))
-    actions.appendChild(editButton)
+    const edit = document.createElement('button')
+    edit.type = 'button'
+    edit.className = 'settings-action-button'
+    edit.textContent = 'Edit'
+    edit.addEventListener('click', () => context.onEditPromptClick(prompt))
+    actions.appendChild(edit)
 
-    const deleteButton = document.createElement('button')
-    deleteButton.type = 'button'
-    deleteButton.className = 'icon-button icon-button-danger'
-    deleteButton.textContent = 'Delete'
-    deleteButton.addEventListener('click', () => context.onDeletePrompt(prompt.id))
-    actions.appendChild(deleteButton)
+    const del = document.createElement('button')
+    del.type = 'button'
+    del.className = 'icon-button icon-button-danger'
+    del.textContent = 'Delete'
+    del.addEventListener('click', () => context.onDeletePrompt(prompt.id))
+    actions.appendChild(del)
 
     item.appendChild(actions)
     promptsList.appendChild(item)
   })
-  container.appendChild(promptsList)
+  frag.appendChild(promptsList)
 
   const editingPrompt = state.prompts.find((p) => p.id === state.editingPromptId) ?? null
 
-  const promptForm = document.createElement('form')
-  promptForm.className = 'edit-form'
+  const form = document.createElement('form')
+  form.className = 'edit-form'
 
-  const promptTypeToggle = document.createElement('div')
-  promptTypeToggle.className = 'type-toggle'
-  const promptTypeOption = document.createElement('label')
-  promptTypeOption.className = 'type-toggle-option'
-  const promptTypeRadio = document.createElement('input')
-  promptTypeRadio.type = 'radio'
-  promptTypeRadio.name = 'org-prompt-type'
-  promptTypeRadio.value = 'prompt'
-  promptTypeRadio.checked = (editingPrompt?.type ?? 'prompt') === 'prompt'
-  promptTypeOption.appendChild(promptTypeRadio)
-  promptTypeOption.appendChild(document.createTextNode('Prompt'))
-  promptTypeToggle.appendChild(promptTypeOption)
-  const skillTypeOption = document.createElement('label')
-  skillTypeOption.className = 'type-toggle-option'
-  const skillTypeRadio = document.createElement('input')
-  skillTypeRadio.type = 'radio'
-  skillTypeRadio.name = 'org-prompt-type'
-  skillTypeRadio.value = 'skill'
-  skillTypeRadio.checked = editingPrompt?.type === 'skill'
-  skillTypeOption.appendChild(skillTypeRadio)
-  skillTypeOption.appendChild(document.createTextNode('Skill'))
-  promptTypeToggle.appendChild(skillTypeOption)
-  promptForm.appendChild(promptTypeToggle)
+  const typeToggle = document.createElement('div')
+  typeToggle.className = 'type-toggle'
+  const promptOpt = document.createElement('label')
+  promptOpt.className = 'type-toggle-option'
+  const promptRadio = document.createElement('input')
+  promptRadio.type = 'radio'
+  promptRadio.name = 'org-prompt-type'
+  promptRadio.value = 'prompt'
+  promptRadio.checked = (editingPrompt?.type ?? 'prompt') === 'prompt'
+  promptOpt.appendChild(promptRadio)
+  promptOpt.appendChild(document.createTextNode('Prompt'))
+  typeToggle.appendChild(promptOpt)
+  const skillOpt = document.createElement('label')
+  skillOpt.className = 'type-toggle-option'
+  const skillRadio = document.createElement('input')
+  skillRadio.type = 'radio'
+  skillRadio.name = 'org-prompt-type'
+  skillRadio.value = 'skill'
+  skillRadio.checked = editingPrompt?.type === 'skill'
+  skillOpt.appendChild(skillRadio)
+  skillOpt.appendChild(document.createTextNode('Skill'))
+  typeToggle.appendChild(skillOpt)
+  form.appendChild(typeToggle)
 
-  const promptNameLabel = document.createElement('label')
-  promptNameLabel.textContent = 'Name'
-  const promptNameInput = document.createElement('input')
-  promptNameInput.type = 'text'
-  promptNameInput.required = true
-  promptNameInput.value = editingPrompt?.name ?? ''
-  promptNameLabel.appendChild(promptNameInput)
-  promptForm.appendChild(promptNameLabel)
-
-  const promptTextLabel = document.createElement('label')
-  promptTextLabel.textContent = 'Prompt text'
-  const promptTextInput = document.createElement('textarea')
-  promptTextInput.required = true
-  promptTextInput.rows = 6
-  promptTextInput.value = editingPrompt?.promptText ?? ''
-  promptTextLabel.appendChild(promptTextInput)
-  promptForm.appendChild(promptTextLabel)
-
-  const promptActions = document.createElement('div')
-  promptActions.className = 'edit-form-actions'
-  if (state.editingPromptId) {
-    const cancelEditButton = document.createElement('button')
-    cancelEditButton.type = 'button'
-    cancelEditButton.textContent = 'Cancel'
-    cancelEditButton.addEventListener('click', context.onCancelEditPrompt)
-    promptActions.appendChild(cancelEditButton)
+  let tabSelect: HTMLSelectElement | null = null
+  if (state.orgTabs.length > 0) {
+    const tabLabel = document.createElement('label')
+    tabLabel.textContent = 'Tab'
+    tabSelect = document.createElement('select')
+    const initialTab = editingPrompt?.tabId ?? state.orgTabs[0].id
+    state.orgTabs.forEach((tab) => {
+      const option = document.createElement('option')
+      option.value = tab.id
+      option.textContent = tab.emoji ? `${tab.emoji} ${tab.name}` : tab.name
+      option.selected = tab.id === initialTab
+      tabSelect!.appendChild(option)
+    })
+    tabLabel.appendChild(tabSelect)
+    form.appendChild(tabLabel)
   }
-  const promptSubmitButton = document.createElement('button')
-  promptSubmitButton.type = 'submit'
-  promptSubmitButton.textContent = state.editingPromptId ? 'Save prompt' : 'Add prompt'
-  promptActions.appendChild(promptSubmitButton)
-  promptForm.appendChild(promptActions)
 
-  promptForm.addEventListener('submit', (event) => {
+  const nameLabel = document.createElement('label')
+  nameLabel.textContent = 'Name'
+  const nameInput = document.createElement('input')
+  nameInput.type = 'text'
+  nameInput.required = true
+  nameInput.value = editingPrompt?.name ?? ''
+  nameLabel.appendChild(nameInput)
+  form.appendChild(nameLabel)
+
+  const textLabel = document.createElement('label')
+  textLabel.textContent = 'Prompt text'
+  const textInput = document.createElement('textarea')
+  textInput.required = true
+  textInput.rows = 6
+  textInput.value = editingPrompt?.promptText ?? ''
+  textLabel.appendChild(textInput)
+  form.appendChild(textLabel)
+
+  const actions = document.createElement('div')
+  actions.className = 'edit-form-actions'
+  if (state.editingPromptId) {
+    const cancel = document.createElement('button')
+    cancel.type = 'button'
+    cancel.textContent = 'Cancel'
+    cancel.addEventListener('click', context.onCancelEditPrompt)
+    actions.appendChild(cancel)
+  }
+  const submit = document.createElement('button')
+  submit.type = 'submit'
+  submit.textContent = state.editingPromptId ? 'Save prompt' : 'Add prompt'
+  actions.appendChild(submit)
+  form.appendChild(actions)
+
+  form.addEventListener('submit', (event) => {
     event.preventDefault()
-    const name = promptNameInput.value.trim()
-    const promptText = promptTextInput.value.trim()
+    const name = nameInput.value.trim()
+    const promptText = textInput.value.trim()
     if (!name || !promptText) return
-    const type: 'prompt' | 'skill' = skillTypeRadio.checked ? 'skill' : 'prompt'
+    const type: 'prompt' | 'skill' = skillRadio.checked ? 'skill' : 'prompt'
+    const tabId = tabSelect?.value ?? state.orgTabs[0]?.id ?? ''
     if (state.editingPromptId) {
-      context.onUpdatePrompt(state.editingPromptId, { name, promptText, type })
+      context.onUpdatePrompt(state.editingPromptId, { name, promptText, type, tabId })
     } else {
-      context.onCreatePrompt({ name, promptText, type })
+      context.onCreatePrompt({ name, promptText, type, tabId })
     }
   })
-
-  container.appendChild(promptForm)
+  frag.appendChild(form)
 
   if (state.promptFormError) {
-    const promptError = document.createElement('p')
-    promptError.className = 'settings-error'
-    promptError.textContent = state.promptFormError
-    container.appendChild(promptError)
+    const err = document.createElement('p')
+    err.className = 'settings-error'
+    err.textContent = state.promptFormError
+    frag.appendChild(err)
+  }
+  return frag
+}
+
+function statTile(value: string, label: string): HTMLElement {
+  const tile = document.createElement('div')
+  tile.className = 'stat-tile'
+  const big = document.createElement('span')
+  big.className = 'stat-tile-value'
+  big.textContent = value
+  const small = document.createElement('span')
+  small.className = 'stat-tile-label'
+  small.textContent = label
+  tile.appendChild(big)
+  tile.appendChild(small)
+  return tile
+}
+
+function renderAnalytics(state: ManageOrgState): DocumentFragment {
+  const frag = document.createDocumentFragment()
+  frag.appendChild(sectionHeading('Analytics'))
+
+  const a = state.analytics
+  if (!a) {
+    const hint = document.createElement('p')
+    hint.className = 'settings-hint'
+    hint.textContent = 'No analytics yet.'
+    frag.appendChild(hint)
+    return frag
   }
 
-  const usageHeading = document.createElement('h3')
-  usageHeading.className = 'team-section-heading'
-  usageHeading.textContent = 'Member usage'
-  container.appendChild(usageHeading)
+  const totalRuns = a.perMember.reduce((sum, m) => sum + m.runCount, 0)
+  const activeMembers = a.perMember.filter((m) => m.runCount > 0).length
+
+  const tiles = document.createElement('div')
+  tiles.className = 'stat-tiles'
+  tiles.appendChild(statTile(String(totalRuns), 'Prompt runs'))
+  tiles.appendChild(statTile(String(activeMembers), 'Active members'))
+  frag.appendChild(tiles)
+
+  // Runs over time -- a simple CSS bar strip for the last 30 days.
+  if (a.dailyRuns.length > 0) {
+    const max = Math.max(...a.dailyRuns.map((d) => d.runCount), 1)
+    const chart = document.createElement('div')
+    chart.className = 'runs-chart'
+    chart.setAttribute('aria-label', 'Prompt runs per day, last 30 days')
+    a.dailyRuns.forEach((d) => {
+      const bar = document.createElement('span')
+      bar.className = 'runs-chart-bar'
+      bar.style.height = `${Math.max(4, Math.round((d.runCount / max) * 100))}%`
+      bar.title = `${d.day}: ${d.runCount}`
+      chart.appendChild(bar)
+    })
+    frag.appendChild(chart)
+  }
+
+  const topHeading = document.createElement('p')
+  topHeading.className = 'settings-hint'
+  topHeading.textContent = 'Top prompts'
+  frag.appendChild(topHeading)
+
+  const topList = document.createElement('ul')
+  topList.className = 'roster-list'
+  a.topPrompts.slice(0, 10).forEach((p) => {
+    const item = document.createElement('li')
+    item.className = 'roster-row'
+    const name = document.createElement('span')
+    name.className = 'roster-row-email'
+    name.textContent = p.name
+    item.appendChild(name)
+    const count = document.createElement('span')
+    count.className = 'roster-row-status'
+    count.textContent = p.runCount === 1 ? '1 run' : `${p.runCount} runs`
+    item.appendChild(count)
+    topList.appendChild(item)
+  })
+  frag.appendChild(topList)
+
+  const perHeading = document.createElement('p')
+  perHeading.className = 'settings-hint'
+  perHeading.textContent = 'Per member'
+  frag.appendChild(perHeading)
+
+  const perList = document.createElement('ul')
+  perList.className = 'roster-list'
+  a.perMember.forEach((m) => {
+    const item = document.createElement('li')
+    item.className = 'roster-row'
+    const email = document.createElement('span')
+    email.className = 'roster-row-email'
+    email.textContent = m.email
+    item.appendChild(email)
+    const count = document.createElement('span')
+    count.className = 'roster-row-status'
+    count.textContent = m.runCount === 1 ? '1 run' : `${m.runCount} runs`
+    item.appendChild(count)
+    perList.appendChild(item)
+  })
+  frag.appendChild(perList)
+
+  return frag
+}
+
+function renderUsageSnapshots(state: ManageOrgState): DocumentFragment {
+  const frag = document.createDocumentFragment()
+  frag.appendChild(sectionHeading('Member rate-limit usage'))
 
   if (state.usageSnapshots.length === 0) {
-    const emptyUsage = document.createElement('p')
-    emptyUsage.className = 'settings-hint'
-    emptyUsage.textContent = 'No usage reported yet.'
-    container.appendChild(emptyUsage)
-  } else {
-    const usageList = document.createElement('ul')
-    usageList.className = 'roster-list'
-    state.usageSnapshots.forEach((snapshot) => {
-      const item = document.createElement('li')
-      item.className = 'roster-row'
-
-      const email = document.createElement('span')
-      email.className = 'roster-row-email'
-      email.textContent = snapshot.email
-      item.appendChild(email)
-
-      const percents = document.createElement('span')
-      percents.className = 'roster-row-status'
-      const parts = [
-        snapshot.sessionPercent !== null ? `Session ${snapshot.sessionPercent}%` : null,
-        snapshot.weeklyPercent !== null ? `Weekly ${snapshot.weeklyPercent}%` : null,
-        snapshot.spendPercent !== null ? `Spend ${snapshot.spendPercent}%` : null,
-      ].filter((part): part is string => part !== null)
-      percents.textContent = parts.length > 0 ? parts.join(' · ') : 'No data'
-      item.appendChild(percents)
-
-      usageList.appendChild(item)
-    })
-    container.appendChild(usageList)
+    const empty = document.createElement('p')
+    empty.className = 'settings-hint'
+    empty.textContent = 'No usage reported yet.'
+    frag.appendChild(empty)
+    return frag
   }
 
-  const backButton = document.createElement('button')
-  backButton.type = 'button'
-  backButton.className = 'settings-back-button'
-  backButton.textContent = '← Back'
-  backButton.addEventListener('click', context.onBack)
-  container.appendChild(backButton)
+  const list = document.createElement('ul')
+  list.className = 'roster-list'
+  state.usageSnapshots.forEach((snapshot) => {
+    const item = document.createElement('li')
+    item.className = 'roster-row'
+    const email = document.createElement('span')
+    email.className = 'roster-row-email'
+    email.textContent = snapshot.email
+    item.appendChild(email)
+    const percents = document.createElement('span')
+    percents.className = 'roster-row-status'
+    const parts = [
+      snapshot.sessionPercent !== null ? `Session ${snapshot.sessionPercent}%` : null,
+      snapshot.weeklyPercent !== null ? `Weekly ${snapshot.weeklyPercent}%` : null,
+      snapshot.spendPercent !== null ? `Spend ${snapshot.spendPercent}%` : null,
+    ].filter((part): part is string => part !== null)
+    percents.textContent = parts.length > 0 ? parts.join(' · ') : 'No data'
+    item.appendChild(percents)
+    list.appendChild(item)
+  })
+  frag.appendChild(list)
+  return frag
+}
+
+export function renderManageOrganisation(
+  state: ManageOrgState,
+  context: ManageOrganisationContext,
+): HTMLElement {
+  const container = document.createElement('div')
+  container.className = 'manage-org'
+
+  const heading = document.createElement('h2')
+  heading.className = 'settings-heading'
+  heading.textContent = 'Manage Organisation'
+  container.appendChild(heading)
+
+  container.appendChild(renderMembers(state, context))
+  container.appendChild(renderSharedTabs(state, context))
+  container.appendChild(renderPrompts(state, context))
+  container.appendChild(renderAnalytics(state))
+  container.appendChild(renderUsageSnapshots(state))
+
+  const back = document.createElement('button')
+  back.type = 'button'
+  back.className = 'settings-back-button'
+  back.textContent = '← Back'
+  back.addEventListener('click', context.onBack)
+  container.appendChild(back)
 
   return container
 }

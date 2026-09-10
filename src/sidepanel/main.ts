@@ -14,12 +14,28 @@ import type { InsertPromptRequest, InsertPromptResponse, GetUsageRequest, GetUsa
 import { parseBackup, serializeBackup } from '../shared/backup'
 import { getTabPrefs, setActiveTab, setDefaultTab, resolveActiveTabId } from '../shared/tab-prefs'
 import {
+  getButtonUsage,
+  recordButtonRun,
+  pruneButtonUsage,
+  sortButtonsByMostUsed,
+  type ButtonUsageMap,
+} from '../shared/prompt-usage'
+import {
+  reportPromptRun,
+  fetchOrgAnalytics,
+  type OrgAnalytics,
+} from '../shared/org-analytics'
+import {
   loadOrgPrompts,
   getCachedOrgPrompts,
   clearCachedOrgPrompts,
   createOrgPrompt,
   updateOrgPrompt,
   deleteOrgPrompt,
+  createOrgTab,
+  updateOrgTab,
+  deleteOrgTab,
+  reorderOrgTabs,
   type OrgPrompt,
   type OrgPromptsResult,
 } from '../shared/org-prompts'
@@ -49,6 +65,9 @@ let view: View = { mode: 'list' }
 let tabs: ToolTab[] = []
 let activeTabId: string | null = null
 let defaultTabId: string | null = null
+let sortMode: 'manual' | 'most-used' = 'manual'
+let buttonUsage: ButtonUsageMap = {}
+let orgAnalytics: OrgAnalytics | null = null
 let session: { email: string } | null = null
 let teamPrompts: OrgPromptsResult = { orgName: null, tabs: [], prompts: [] }
 let orgSession: OrgSessionState | null = null
@@ -158,6 +177,14 @@ async function refreshOrgUsage(root: HTMLElement): Promise<void> {
   if (view.mode === 'manage-org') await refresh(root)
 }
 
+async function refreshOrgAnalytics(root: HTMLElement): Promise<void> {
+  const idToken = await authAdapter.getValidToken()
+  if (!idToken) return
+  const analytics = await fetchOrgAnalytics(idToken)
+  if (analytics) orgAnalytics = analytics
+  if (view.mode === 'manage-org') await refresh(root)
+}
+
 async function reportCurrentUsage(): Promise<void> {
   const idToken = await authAdapter.getValidToken()
   if (!idToken) return
@@ -190,6 +217,8 @@ async function refresh(root: HTMLElement): Promise<void> {
   try {
     const buttons = await toolService.listButtons()
     tabs = await toolService.listTabs()
+    buttonUsage = await getButtonUsage()
+    void pruneButtonUsage(buttons.map((b) => b.id))
     const prefs = await getTabPrefs()
     defaultTabId = prefs.defaultTabId
     if (!activeTabId || !tabs.some((t) => t.id === activeTabId)) {
@@ -198,12 +227,15 @@ async function refresh(root: HTMLElement): Promise<void> {
         prefs,
       )
     }
-    const visibleButtons =
+    let visibleButtons =
       activeTabId === null ? buttons : buttons.filter((b) => b.tabId === activeTabId)
+    if (sortMode === 'most-used') {
+      visibleButtons = sortButtonsByMostUsed(visibleButtons, buttonUsage)
+    }
     renderApp(
       root,
-      buttons,
-      { tabs, activeTabId, defaultTabId },
+      visibleButtons,
+      { tabs, activeTabId, defaultTabId, sortMode, buttonUsage, allButtons: buttons },
       view,
       runState,
       settingsState,
@@ -213,10 +245,12 @@ async function refresh(root: HTMLElement): Promise<void> {
       {
         members: orgMembers,
         addError: manageOrgAddError,
+        orgTabs: teamPrompts.tabs,
         prompts: orgPrompts,
         editingPromptId,
         promptFormError,
         usageSnapshots: orgUsageSnapshots,
+        analytics: orgAnalytics,
       },
       {
       onRun: async (button: Button) => {
@@ -253,6 +287,7 @@ async function refresh(root: HTMLElement): Promise<void> {
 
           if (response.ok) {
             runState.set(button.id, { isRunning: false, error: null })
+            void recordButtonRun(button.id)
           } else {
             console.error('[Claude Tools] run failed', response.error, response.message)
             runState.set(button.id, { isRunning: false, error: response.message })
@@ -292,6 +327,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         }
       },
       onDrop: async (draggedId: string, targetId: string, position: 'before' | 'after') => {
+        if (sortMode !== 'manual') return
         clearRunErrors()
         const ids = withMovedId(
           visibleButtons.map((b) => b.id),
@@ -308,6 +344,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         }
       },
       onArrowMove: async (id: string, direction: 'up' | 'down') => {
+        if (sortMode !== 'manual') return
         const ids = withSwappedAdjacent(
           visibleButtons.map((b) => b.id),
           id,
@@ -350,6 +387,10 @@ async function refresh(root: HTMLElement): Promise<void> {
         activeTabId = tabId
         await setActiveTab(tabId)
         await refresh(root)
+      },
+      onToggleSort: () => {
+        sortMode = sortMode === 'most-used' ? 'manual' : 'most-used'
+        void refresh(root)
       },
       onAddTab: async () => {
         clearRunErrors()
@@ -548,6 +589,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         void refreshOrgMembers(root)
         void refreshOrgPrompts(root)
         void refreshOrgUsage(root)
+        void refreshOrgAnalytics(root)
       },
       onManageOrgBack: () => {
         manageOrgAddError = null
@@ -589,6 +631,46 @@ async function refresh(root: HTMLElement): Promise<void> {
         const added = await addOrgMember(idToken, email)
         manageOrgAddError = added ? null : 'Something went wrong adding that member. Check the console for details.'
         await refreshOrgMembers(root)
+      },
+      onCreateOrgTab: async (name: string) => {
+        const idToken = await authAdapter.getValidToken()
+        if (!idToken) return
+        await createOrgTab(idToken, { name })
+        await refreshOrgPrompts(root)
+      },
+      onRenameOrgTab: async (id: string, name: string, emoji: string | null) => {
+        const idToken = await authAdapter.getValidToken()
+        if (!idToken) return
+        await updateOrgTab(idToken, id, { name, emoji })
+        await refreshOrgPrompts(root)
+      },
+      onDeleteOrgTab: async (id: string) => {
+        const tab = teamPrompts.tabs.find((t) => t.id === id)
+        if (!tab) return
+        const count = teamPrompts.prompts.filter((p) => p.tabId === id).length
+        const message =
+          count === 0
+            ? `Delete the shared "${tab.name}" tab?`
+            : `Delete the shared "${tab.name}" tab? Its ${count} prompt${count === 1 ? '' : 's'} move to the first remaining tab.`
+        if (!window.confirm(message)) return
+        const idToken = await authAdapter.getValidToken()
+        if (!idToken) return
+        const result = await deleteOrgTab(idToken, id)
+        if (!result.ok && result.status === 400) {
+          announce('An organisation must keep at least one shared tab.')
+        }
+        await refreshOrgPrompts(root)
+      },
+      onMoveOrgTab: async (id: string, direction: 'up' | 'down') => {
+        const ids = teamPrompts.tabs.map((t) => t.id)
+        const i = ids.indexOf(id)
+        const j = direction === 'up' ? i - 1 : i + 1
+        if (i === -1 || j < 0 || j >= ids.length) return
+        ;[ids[i], ids[j]] = [ids[j], ids[i]]
+        const idToken = await authAdapter.getValidToken()
+        if (!idToken) return
+        await reorderOrgTabs(idToken, ids)
+        await refreshOrgPrompts(root)
       },
       onCreatePrompt: async (data) => {
         const idToken = await authAdapter.getValidToken()
@@ -646,6 +728,9 @@ async function refresh(root: HTMLElement): Promise<void> {
             }
             if (response.ok) {
               announce(`Inserted ${prompt.name}.`)
+              void authAdapter.getValidToken().then((token) => {
+                if (token) void reportPromptRun(token, prompt.id)
+              })
             } else {
               console.error('[Claude Tools] team prompt run failed', response.error, response.message)
               announce(response.message)
