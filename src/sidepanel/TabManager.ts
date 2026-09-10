@@ -1,4 +1,5 @@
 import type { ToolTab } from '../shared/types'
+import { joinTabLabel, splitTabLabel } from '../shared/tab-label'
 
 export interface TabManagerContext {
   defaultTabId: string | null
@@ -34,41 +35,30 @@ export function renderTabManager(tabs: ToolTab[], context: TabManagerContext): H
     const row = document.createElement('li')
     row.className = 'tab-manager-row'
 
-    const emoji = document.createElement('input')
-    emoji.type = 'text'
-    emoji.className = 'tab-manager-emoji'
-    emoji.value = tab.emoji ?? ''
-    emoji.maxLength = 2
-    emoji.setAttribute('aria-label', `Emoji for ${tab.name}`)
-    emoji.placeholder = '–'
-
-    const name = document.createElement('input')
-    name.type = 'text'
-    name.className = 'tab-manager-name'
-    name.value = tab.name
-    name.setAttribute('aria-label', `Name for ${tab.name}`)
+    const label = document.createElement('input')
+    label.type = 'text'
+    label.className = 'tab-manager-name'
+    label.value = joinTabLabel(tab.emoji, tab.name)
+    label.setAttribute('aria-label', `Name for ${tab.name} (start with an emoji to set an icon)`)
 
     function commit(): void {
-      const nextName = name.value.trim()
-      const nextEmoji = emoji.value.trim() || null
-      if (nextName.length === 0) {
-        name.value = tab.name
+      const { emoji, name } = splitTabLabel(label.value)
+      if (name.length === 0) {
+        label.value = joinTabLabel(tab.emoji, tab.name)
         return
       }
-      if (nextName === tab.name && nextEmoji === (tab.emoji ?? null)) return
-      context.onRename(tab.id, nextName, nextEmoji)
+      if (name === tab.name && emoji === (tab.emoji ?? null)) return
+      context.onRename(tab.id, name, emoji)
     }
-    name.addEventListener('blur', commit)
-    emoji.addEventListener('blur', commit)
-    name.addEventListener('keydown', (e) => {
+    label.addEventListener('blur', commit)
+    label.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault()
         ;(e.target as HTMLInputElement).blur()
       }
     })
 
-    row.appendChild(emoji)
-    row.appendChild(name)
+    row.appendChild(label)
 
     const count = context.buttonCountByTab[tab.id] ?? 0
     const meta = document.createElement('span')

@@ -205,19 +205,28 @@ export function renderApp(
 
   const header = document.createElement('div')
   header.className = 'toolbar'
+
+  const wordmark = document.createElement('span')
+  wordmark.className = 'wordmark'
+  wordmark.textContent = 'Claude Tools'
+  header.appendChild(wordmark)
+
+  const headerActions = document.createElement('div')
+  headerActions.className = 'toolbar-actions'
   const settingsButton = document.createElement('button')
   settingsButton.type = 'button'
   settingsButton.className = 'icon-button settings-button'
   settingsButton.textContent = '⚙'
   settingsButton.setAttribute('aria-label', 'Settings')
   settingsButton.addEventListener('click', context.onOpenSettings)
-  header.appendChild(settingsButton)
+  headerActions.appendChild(settingsButton)
   const addButton = document.createElement('button')
   addButton.type = 'button'
   addButton.className = 'add-button'
   addButton.textContent = '+ Add tool'
   addButton.addEventListener('click', context.onAddClick)
-  header.appendChild(addButton)
+  headerActions.appendChild(addButton)
+  header.appendChild(headerActions)
   root.appendChild(header)
 
   if (tabState.tabs.length > 0) {
