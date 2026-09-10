@@ -1,20 +1,22 @@
 import type { AuthAdapter } from './auth-adapter'
+import { API_BASE_URL } from '../api-base'
 import { CLERK_DOMAIN, CLERK_OAUTH_CLIENT_ID } from './providers'
 import {
   readSession,
   writeSession,
   clearSession,
   isSessionTokenFresh,
-  exchangeIdTokenForSession,
   decodeJwtPayload,
   isTokenExpired,
   type StoredSession,
+  type SessionExchangeResult,
 } from './session-store'
 
 // Clerk as an OAuth 2.0 / OIDC provider ("OAuth Applications" in the Clerk
-// dashboard). Authorization-code + PKCE, public client -- no secret in the
-// extension. The extension gets Clerk's id_token and trades it for a
-// backend session token, exactly like the Google flow.
+// dashboard). The extension runs authorization-code + PKCE and hands the
+// code to the backend, which does the token exchange (so a client secret,
+// if the Clerk app is confidential, never touches the extension) and
+// returns a ready backend session token.
 
 function base64url(bytes: ArrayBuffer): string {
   let binary = ''
@@ -57,38 +59,36 @@ export function extractCodeFromRedirect(redirectUrl: string, expectedState: stri
   return params.get('code')
 }
 
-interface ClerkTokenResponse {
-  id_token?: unknown
-  access_token?: unknown
-}
-
-async function exchangeCodeForIdToken(
+/** Hands the authorization code to the backend, which exchanges it with
+ * Clerk and returns a backend session token. */
+async function exchangeCodeForSession(
   code: string,
   redirectUri: string,
-  verifier: string,
-): Promise<string | null> {
+  codeVerifier: string,
+): Promise<SessionExchangeResult | null> {
   try {
-    const response = await fetch(`https://${CLERK_DOMAIN}/oauth/token`, {
+    const response = await fetch(`${API_BASE_URL}/api/auth/session`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: redirectUri,
-        client_id: CLERK_OAUTH_CLIENT_ID,
-        code_verifier: verifier,
-      }).toString(),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, redirectUri, codeVerifier }),
     })
     if (!response.ok) {
-      console.error('[Claude Tools] Clerk token endpoint returned', response.status)
+      console.error('[Claude Tools] Clerk code exchange returned', response.status)
       return null
     }
-    const body = (await response.json()) as ClerkTokenResponse
-    if (typeof body.id_token === 'string') return body.id_token
-    if (typeof body.access_token === 'string') return body.access_token
-    return null
+    const body = (await response.json()) as { sessionToken?: unknown; email?: unknown; expiresAt?: unknown }
+    if (
+      typeof body.sessionToken !== 'string' ||
+      typeof body.email !== 'string' ||
+      typeof body.expiresAt !== 'string'
+    ) {
+      return null
+    }
+    const expiresAt = Math.floor(new Date(body.expiresAt).getTime() / 1000)
+    if (!Number.isFinite(expiresAt)) return null
+    return { sessionToken: body.sessionToken, email: body.email, expiresAt }
   } catch (error) {
-    console.error('[Claude Tools] Clerk token exchange failed', error)
+    console.error('[Claude Tools] Clerk code exchange failed', error)
     return null
   }
 }
@@ -112,22 +112,20 @@ export class ClerkAuthAdapter implements AuthAdapter {
     const code = extractCodeFromRedirect(redirectUrl, state)
     if (!code) return null
 
-    const idToken = await exchangeCodeForIdToken(code, redirectUri, verifier)
-    if (!idToken) return null
+    const exchanged = await exchangeCodeForSession(code, redirectUri, verifier)
+    if (!exchanged) return null
 
-    const { email } = decodeJwtPayload(idToken)
-    if (!email) return null
-
-    const exchanged = await exchangeIdTokenForSession(idToken)
-    const session: StoredSession = exchanged
-      ? {
-          provider: 'clerk',
-          email: exchanged.email,
-          idToken,
-          sessionToken: exchanged.sessionToken,
-          sessionExpiresAt: exchanged.expiresAt,
-        }
-      : { provider: 'clerk', email, idToken }
+    const session: StoredSession = {
+      provider: 'clerk',
+      email: exchanged.email,
+      // No provider id_token is kept on the extension side for Clerk --
+      // the backend session token is the only credential. `idToken` holds
+      // the session token too so the fallback paths in getValidToken keep
+      // working uniformly.
+      idToken: exchanged.sessionToken,
+      sessionToken: exchanged.sessionToken,
+      sessionExpiresAt: exchanged.expiresAt,
+    }
     await writeSession(session)
     return session
   }
@@ -153,12 +151,15 @@ export class ClerkAuthAdapter implements AuthAdapter {
       return session.sessionToken
     }
 
+    // Session token near expiry / absent -- a silent re-auth gets a fresh
+    // one from a still-live Clerk session cookie.
     const refreshed = await this.runAuthFlow(false)
-    if (refreshed) return refreshed.sessionToken ?? refreshed.idToken
+    if (refreshed?.sessionToken) return refreshed.sessionToken
 
-    if (session) {
-      const { exp } = decodeJwtPayload(session.idToken)
-      if (!isTokenExpired(exp, now)) return session.sessionToken ?? session.idToken
+    // Offline fallback: the stored session token, if it hasn't hard-expired.
+    if (session?.sessionToken) {
+      const { exp } = decodeJwtPayload(session.sessionToken)
+      if (!isTokenExpired(exp, now)) return session.sessionToken
     }
 
     await clearSession()
