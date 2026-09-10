@@ -153,3 +153,122 @@ create policy usage_snapshots_insert on usage_snapshots
 create policy usage_snapshots_update on usage_snapshots
   for update
   using (org_id = current_setting('app.current_org_id', true)::uuid);
+
+-- ===========================================================================
+-- Phase 5: organisation shared tabs, and Phase 9: prompt-run analytics.
+--
+-- Migrating an existing database in place (rather than starting fresh):
+-- run everything from the `create table org_tabs` line to the end. It is
+-- all additive (new tables, two nullable/defaulted columns on `prompts`)
+-- and the `do $$ ... $$` backfill block is safe to re-run -- it only acts
+-- on prompts that still have a null tab_id.
+-- ===========================================================================
+
+create table org_tabs (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references organizations(id),
+  name text not null,
+  emoji text,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+alter table org_tabs enable row level security;
+alter table org_tabs force row level security;
+
+-- Same defense-in-depth split as prompts/org_members: RLS proves org
+-- isolation on read; the API layer proves the caller is a director of the
+-- target org before any write. Hence the unconditional insert policy.
+create policy org_tabs_isolation on org_tabs
+  for select
+  using (org_id = current_setting('app.current_org_id', true)::uuid);
+
+create policy org_tabs_insert on org_tabs
+  for insert
+  with check (true);
+
+create policy org_tabs_update on org_tabs
+  for update
+  using (org_id = current_setting('app.current_org_id', true)::uuid);
+
+create policy org_tabs_delete on org_tabs
+  for delete
+  using (org_id = current_setting('app.current_org_id', true)::uuid);
+
+alter table prompts add column if not exists tab_id uuid references org_tabs(id);
+alter table prompts add column if not exists sort_order integer not null default 0;
+
+-- Backfill: give every organisation that has prompts a "General" tab and
+-- move its prompts into it. Idempotent -- only touches prompts whose
+-- tab_id is still null.
+do $$
+declare
+  o record;
+  new_tab uuid;
+begin
+  for o in select distinct org_id from prompts where tab_id is null loop
+    insert into org_tabs (org_id, name, sort_order)
+    values (o.org_id, 'General', 0)
+    returning id into new_tab;
+    update prompts set tab_id = new_tab where org_id = o.org_id and tab_id is null;
+  end loop;
+end $$;
+
+-- --- Phase 9 analytics ---
+
+-- Lifetime run counters, one row per (prompt, member). Upserted on each
+-- reported prompt run. `on delete cascade` on prompt_id so removing a
+-- shared prompt takes its usage rows with it.
+create table org_prompt_usage (
+  org_id uuid not null references organizations(id),
+  prompt_id uuid not null references prompts(id) on delete cascade,
+  email text not null,
+  run_count integer not null default 0,
+  last_used_at timestamptz not null default now(),
+  primary key (org_id, prompt_id, email)
+);
+
+alter table org_prompt_usage enable row level security;
+alter table org_prompt_usage force row level security;
+
+create policy org_prompt_usage_isolation on org_prompt_usage
+  for select
+  using (org_id = current_setting('app.current_org_id', true)::uuid);
+
+create policy org_prompt_usage_insert on org_prompt_usage
+  for insert
+  with check (true);
+
+create policy org_prompt_usage_update on org_prompt_usage
+  for update
+  using (org_id = current_setting('app.current_org_id', true)::uuid);
+
+-- Org-wide daily run totals, for the "runs over time" chart only. No
+-- per-prompt or per-member breakdown here -- that comes from
+-- org_prompt_usage. Rows older than 30 days are pruned on each write, so
+-- this table stays tiny and needs no separate retention job.
+create table org_daily_runs (
+  org_id uuid not null references organizations(id),
+  day date not null,
+  run_count integer not null default 0,
+  primary key (org_id, day)
+);
+
+alter table org_daily_runs enable row level security;
+alter table org_daily_runs force row level security;
+
+create policy org_daily_runs_isolation on org_daily_runs
+  for select
+  using (org_id = current_setting('app.current_org_id', true)::uuid);
+
+create policy org_daily_runs_insert on org_daily_runs
+  for insert
+  with check (true);
+
+create policy org_daily_runs_update on org_daily_runs
+  for update
+  using (org_id = current_setting('app.current_org_id', true)::uuid);
+
+create policy org_daily_runs_delete on org_daily_runs
+  for delete
+  using (org_id = current_setting('app.current_org_id', true)::uuid);

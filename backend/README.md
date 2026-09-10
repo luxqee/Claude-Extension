@@ -134,14 +134,8 @@ Authorization: Bearer <google-id-token>
 500 -> SESSION_JWT_SECRET not configured on the server
 ```
 
-```
-GET /api/org-prompts
-Authorization: Bearer <token>   (Google id_token or session token)
-
-200 -> { "org": { "name": "Acme" }, "prompts": [ { "name": "...", "prompt_text": "...", "type": "prompt" } ] }
-200 -> { "org": null, "prompts": [] }   // token verifies, but the caller has no active org_members row
-401 -> token missing or invalid
-```
+(GET /api/org-prompts and the shared-tab endpoints are documented together
+further down.)
 
 ```
 POST /api/org-session
@@ -178,9 +172,21 @@ POST /api/org-members-set-role  { "email": "...", "role": "director" | "member" 
 ```
 
 ```
-POST   /api/org-prompts        { "name", "promptText", "type" }         (director-only) -> 201
-PATCH  /api/org-prompts/:id    { "name"?, "promptText"?, "type"? }        (director-only) -> 204 | 404 (not in this org)
-DELETE /api/org-prompts/:id                                               (director-only) -> 204 | 404 (not in this org)
+GET    /api/org-prompts                                                   (any active member)
+200 -> { "org": { "name" }, "tabs": [ { "id", "name", "emoji", "sort_order" } ],
+        "prompts": [ { "id", "name", "prompt_text", "type", "tab_id", "sort_order" } ] }
+
+POST   /api/org-prompts        { "name", "promptText", "type", "tabId"? }  (director-only) -> 201
+PATCH  /api/org-prompts/:id    { "name"?, "promptText"?, "type"?, "tabId"? }  (director-only) -> 204 | 404
+DELETE /api/org-prompts/:id                                               (director-only) -> 204 | 404
+```
+
+```
+POST   /api/org-tabs          { "name", "emoji"? }                        (director-only) -> 201
+PATCH  /api/org-tabs/:id      { "name"?, "emoji"? }                       (director-only) -> 204 | 404
+DELETE /api/org-tabs/:id                                                  (director-only) -> 204 | 400 (last tab) | 404
+  -- the deleted tab's prompts move to the org's first remaining tab.
+POST   /api/org-tabs-reorder  { "orderedIds": ["...", "..."] }            (director-only) -> 204
 ```
 
 ```

@@ -3,12 +3,25 @@ export interface OrgPrompt {
   name: string
   promptText: string
   type: 'prompt' | 'skill'
+  /** null only for legacy rows the Phase 5 backfill somehow missed. */
+  tabId: string | null
+  sortOrder: number
+}
+
+export interface OrgTab {
+  id: string
+  name: string
+  emoji: string | null
+  sortOrder: number
 }
 
 export interface OrgPromptsResult {
   orgName: string | null
+  tabs: OrgTab[]
   prompts: OrgPrompt[]
 }
+
+const EMPTY_RESULT: OrgPromptsResult = { orgName: null, tabs: [], prompts: [] }
 
 export { API_BASE_URL } from './api-base'
 import { API_BASE_URL } from './api-base'
@@ -26,14 +39,43 @@ function parsePrompt(entry: unknown): OrgPrompt | null {
   const type = entry.type
   if (typeof id !== 'string' || typeof name !== 'string' || typeof promptText !== 'string') return null
   if (type !== 'prompt' && type !== 'skill') return null
-  return { id, name, promptText, type }
+  return {
+    id,
+    name,
+    promptText,
+    type,
+    tabId: typeof entry.tab_id === 'string' ? entry.tab_id : null,
+    sortOrder: typeof entry.sort_order === 'number' ? entry.sort_order : 0,
+  }
+}
+
+function parseTab(entry: unknown): OrgTab | null {
+  if (!isRecord(entry)) return null
+  const id = entry.id
+  const name = entry.name
+  if (typeof id !== 'string' || typeof name !== 'string') return null
+  return {
+    id,
+    name,
+    emoji: typeof entry.emoji === 'string' && entry.emoji.length > 0 ? entry.emoji : null,
+    sortOrder: typeof entry.sort_order === 'number' ? entry.sort_order : 0,
+  }
 }
 
 export function parseOrgPromptsResponse(raw: unknown): OrgPromptsResult {
-  if (!isRecord(raw)) return { orgName: null, prompts: [] }
+  if (!isRecord(raw)) return { ...EMPTY_RESULT }
 
   const org = raw.org
   const orgName = isRecord(org) && typeof org.name === 'string' ? org.name : null
+
+  const tabs: OrgTab[] = []
+  if (Array.isArray(raw.tabs)) {
+    for (const entry of raw.tabs) {
+      const tab = parseTab(entry)
+      if (tab) tabs.push(tab)
+    }
+  }
+  tabs.sort((a, b) => a.sortOrder - b.sortOrder)
 
   const prompts: OrgPrompt[] = []
   if (Array.isArray(raw.prompts)) {
@@ -42,8 +84,9 @@ export function parseOrgPromptsResponse(raw: unknown): OrgPromptsResult {
       if (prompt) prompts.push(prompt)
     }
   }
+  prompts.sort((a, b) => a.sortOrder - b.sortOrder)
 
-  return { orgName, prompts }
+  return { orgName, tabs, prompts }
 }
 
 export async function fetchOrgPrompts(idToken: string): Promise<OrgPromptsResult | null> {
@@ -94,13 +137,14 @@ export async function loadOrgPrompts(idToken: string): Promise<OrgPromptsResult>
     return fresh
   }
   const cached = await getCachedOrgPrompts()
-  return cached ?? { orgName: null, prompts: [] }
+  return cached ?? { ...EMPTY_RESULT }
 }
 
 export interface CreateOrgPromptInput {
   name: string
   promptText: string
   type: 'prompt' | 'skill'
+  tabId?: string
 }
 
 export async function createOrgPrompt(idToken: string, input: CreateOrgPromptInput): Promise<boolean> {
@@ -121,6 +165,7 @@ export interface UpdateOrgPromptInput {
   name?: string
   promptText?: string
   type?: 'prompt' | 'skill'
+  tabId?: string
 }
 
 export async function updateOrgPrompt(idToken: string, id: string, input: UpdateOrgPromptInput): Promise<boolean> {
@@ -146,6 +191,76 @@ export async function deleteOrgPrompt(idToken: string, id: string): Promise<bool
     return response.ok
   } catch (error) {
     console.error('[Claude Tools] failed to delete org prompt', error)
+    return false
+  }
+}
+
+// --- shared (organisation) tabs ---
+
+export interface CreateOrgTabInput {
+  name: string
+  emoji?: string | null
+}
+
+export async function createOrgTab(idToken: string, input: CreateOrgTabInput): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/org-tabs`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: input.name, emoji: input.emoji ?? null }),
+    })
+    return response.ok
+  } catch (error) {
+    console.error('[Claude Tools] failed to create org tab', error)
+    return false
+  }
+}
+
+export interface UpdateOrgTabInput {
+  name?: string
+  emoji?: string | null
+}
+
+export async function updateOrgTab(idToken: string, id: string, input: UpdateOrgTabInput): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/org-tabs/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    return response.ok
+  } catch (error) {
+    console.error('[Claude Tools] failed to update org tab', error)
+    return false
+  }
+}
+
+export async function deleteOrgTab(
+  idToken: string,
+  id: string,
+): Promise<{ ok: true } | { ok: false; status: number }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/org-tabs/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${idToken}` },
+    })
+    return response.ok ? { ok: true } : { ok: false, status: response.status }
+  } catch (error) {
+    console.error('[Claude Tools] failed to delete org tab', error)
+    return { ok: false, status: 0 }
+  }
+}
+
+export async function reorderOrgTabs(idToken: string, orderedIds: string[]): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/org-tabs-reorder`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderedIds }),
+    })
+    return response.ok
+  } catch (error) {
+    console.error('[Claude Tools] failed to reorder org tabs', error)
     return false
   }
 }

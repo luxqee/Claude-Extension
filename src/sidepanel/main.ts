@@ -50,7 +50,7 @@ let tabs: ToolTab[] = []
 let activeTabId: string | null = null
 let defaultTabId: string | null = null
 let session: { email: string } | null = null
-let teamPrompts: OrgPromptsResult = { orgName: null, prompts: [] }
+let teamPrompts: OrgPromptsResult = { orgName: null, tabs: [], prompts: [] }
 let orgSession: OrgSessionState | null = null
 let orgMembers: OrgMember[] = []
 let manageOrgAddError: string | null = null
@@ -97,7 +97,7 @@ async function resolveOrgSession(root: HTMLElement): Promise<void> {
     const cached = session ? await getCachedOrgPrompts() : null
     if (session !== startedForSession) return
     orgSession = null
-    teamPrompts = cached ?? { orgName: null, prompts: [] }
+    teamPrompts = cached ?? { orgName: null, tabs: [], prompts: [] }
     stopUsageReportTimer()
     if (view.mode === 'list') await refresh(root)
     return
@@ -124,10 +124,10 @@ async function resolveOrgSession(root: HTMLElement): Promise<void> {
     // behaviour where the Team section came straight from loadOrgPrompts.
     const cached = await getCachedOrgPrompts()
     if (session !== startedForSession) return
-    teamPrompts = cached ?? { orgName: null, prompts: [] }
+    teamPrompts = cached ?? { orgName: null, tabs: [], prompts: [] }
     stopUsageReportTimer()
   } else {
-    teamPrompts = { orgName: null, prompts: [] }
+    teamPrompts = { orgName: null, tabs: [], prompts: [] }
     stopUsageReportTimer()
   }
   if (view.mode === 'list') await refresh(root)
@@ -509,7 +509,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         session = null
         stopUsageReportTimer()
         orgSession = null
-        teamPrompts = { orgName: null, prompts: [] }
+        teamPrompts = { orgName: null, tabs: [], prompts: [] }
         if (view.mode === 'org-onboarding') view = { mode: 'list' }
         await refresh(root)
       },
@@ -537,7 +537,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         session = null
         stopUsageReportTimer()
         orgSession = null
-        teamPrompts = { orgName: null, prompts: [] }
+        teamPrompts = { orgName: null, tabs: [], prompts: [] }
         view = { mode: 'list' }
         await refresh(root)
       },

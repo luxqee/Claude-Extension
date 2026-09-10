@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { neon } from '@neondatabase/serverless'
 import { resolveEmail } from '../../lib/resolve-email.js'
 import { resolveDirectorContext } from '../../lib/require-director.js'
+import { nextSortOrder } from '../../lib/org-tab-helpers.js'
 
 const sql = neon(process.env.DATABASE_URL ?? '')
 
@@ -49,8 +50,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     }
 
     // PATCH
-    const body = req.body as { name?: unknown; promptText?: unknown; type?: unknown }
-    const updates: { name?: string; prompt_text?: string; type?: 'prompt' | 'skill' } = {}
+    const body = req.body as { name?: unknown; promptText?: unknown; type?: unknown; tabId?: unknown }
+    const updates: {
+      name?: string
+      prompt_text?: string
+      type?: 'prompt' | 'skill'
+      tab_id?: string
+      sort_order?: number
+    } = {}
     if (body.name !== undefined) {
       if (typeof body.name !== 'string' || body.name.trim().length === 0) {
         res.status(400).json({ error: 'name must be a non-empty string' })
@@ -72,6 +79,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       }
       updates.type = body.type
     }
+    if (body.tabId !== undefined) {
+      if (typeof body.tabId !== 'string') {
+        res.status(400).json({ error: 'tabId must be a string' })
+        return
+      }
+      const tabRows = (await sql`
+        SELECT id FROM org_tabs WHERE id = ${body.tabId} AND org_id = ${director.orgId}
+      `) as { id: string }[]
+      if (tabRows.length === 0) {
+        res.status(400).json({ error: 'tabId is not a tab of this organisation' })
+        return
+      }
+      updates.tab_id = body.tabId
+      updates.sort_order = nextSortOrder(
+        ((await sql`
+          SELECT sort_order FROM prompts WHERE org_id = ${director.orgId} AND tab_id = ${body.tabId}
+        `) as { sort_order: number }[]).map((r) => r.sort_order),
+      )
+    }
     if (Object.keys(updates).length === 0) {
       res.status(400).json({ error: 'no fields to update' })
       return
@@ -83,7 +109,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         UPDATE prompts SET
           name = COALESCE(${updates.name ?? null}, name),
           prompt_text = COALESCE(${updates.prompt_text ?? null}, prompt_text),
-          type = COALESCE(${updates.type ?? null}, type)
+          type = COALESCE(${updates.type ?? null}, type),
+          tab_id = COALESCE(${updates.tab_id ?? null}, tab_id),
+          sort_order = COALESCE(${updates.sort_order ?? null}, sort_order)
         WHERE id = ${promptId} AND org_id = ${director.orgId}
         RETURNING id
       `,
