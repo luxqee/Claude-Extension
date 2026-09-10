@@ -118,7 +118,7 @@ async function resolveOrgSession(root: HTMLElement): Promise<void> {
     orgSession = null
     teamPrompts = cached ?? { orgName: null, tabs: [], prompts: [] }
     stopUsageReportTimer()
-    if (view.mode === 'list') await refresh(root)
+    if (view.mode === 'list' || view.mode === 'settings') await refresh(root)
     return
   }
 
@@ -149,7 +149,7 @@ async function resolveOrgSession(root: HTMLElement): Promise<void> {
     teamPrompts = { orgName: null, tabs: [], prompts: [] }
     stopUsageReportTimer()
   }
-  if (view.mode === 'list') await refresh(root)
+  if (view.mode === 'list' || view.mode === 'settings') await refresh(root)
 }
 
 async function refreshOrgMembers(root: HTMLElement): Promise<void> {
