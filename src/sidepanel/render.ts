@@ -19,6 +19,7 @@ import { renderTabStrip } from './TabStrip'
 import { renderTabManager } from './TabManager'
 import type { OrgPrompt, OrgPromptsResult } from '../shared/org-prompts'
 import type { OrgSessionState } from '../shared/org-session'
+import type { ProviderId } from '../shared/auth/providers'
 
 export type View =
   | { mode: 'list' }
@@ -71,7 +72,7 @@ export interface RenderContext {
   onExport: () => void
   onImport: (file: File) => void
   onSettingsBack: () => void
-  onSignIn: () => void
+  onSignIn: (providerId: ProviderId) => void
   onSignOut: () => void
   onRunTeamPrompt: (prompt: OrgPrompt) => void
   onOnboardingSubmit: (data: { orgName: string; initialMemberEmails: string[] }) => void

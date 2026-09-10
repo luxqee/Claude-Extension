@@ -1,30 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { OAuth2Client } from 'google-auth-library'
 import { signSessionToken } from '../../lib/jwt.js'
+import { extractBearerToken, verifyExternalToken } from '../../lib/resolve-email.js'
 
-// Exchanges a Google id_token (from the extension's sign-in flow) for a
-// backend-issued session token the extension then uses for every other
-// API call. This decouples day-to-day operation from refreshing a
-// short-lived Google id_token -- see
+// Exchanges a provider id_token (Google or Clerk, from the extension's
+// sign-in flow) for a backend-issued session token the extension then
+// uses for every other API call. Decouples day-to-day operation from
+// refreshing a short-lived provider token -- see
 // docs/superpowers/specs/2026-09-10-phase2-session-token-design.md.
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID ?? ''
 const SESSION_JWT_SECRET = process.env.SESSION_JWT_SECRET ?? ''
 const SESSION_TTL_SECONDS = 14 * 24 * 60 * 60
-
-const oauthClient = new OAuth2Client(GOOGLE_CLIENT_ID)
-
-async function verifyEmail(idToken: string): Promise<string | null> {
-  try {
-    const ticket = await oauthClient.verifyIdToken({ idToken, audience: GOOGLE_CLIENT_ID })
-    const payload = ticket.getPayload()
-    if (!payload?.email_verified) return null
-    return payload.email ?? null
-  } catch (error) {
-    console.error('[auth/session] token verification failed', error)
-    return null
-  }
-}
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (req.method !== 'POST') {
@@ -38,14 +23,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return
   }
 
-  const authHeader = req.headers.authorization
-  const idToken = authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null
+  const idToken = extractBearerToken(req.headers.authorization)
   if (!idToken) {
     res.status(401).json({ error: 'missing token' })
     return
   }
 
-  const email = await verifyEmail(idToken)
+  const email = await verifyExternalToken(idToken)
   if (!email) {
     res.status(401).json({ error: 'invalid token' })
     return

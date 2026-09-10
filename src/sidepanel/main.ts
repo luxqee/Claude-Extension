@@ -1,6 +1,7 @@
 import { ToolService } from '../shared/tool-service'
 import { ChromeLocalStorageAdapter } from '../shared/storage/chrome-local-adapter'
-import { GoogleAuthAdapter } from '../shared/auth/google-auth-adapter'
+import { AuthManager } from '../shared/auth/auth-manager'
+import type { ProviderId } from '../shared/auth/providers'
 import {
   renderApp,
   withMovedId,
@@ -52,7 +53,7 @@ import type { ManageOrgState } from './ManageOrganisation'
 import { reportUsage, fetchOrgUsage, type OrgUsageSnapshot } from '../shared/usage-report'
 
 const toolService = new ToolService(new ChromeLocalStorageAdapter())
-const authAdapter = new GoogleAuthAdapter()
+const authAdapter = new AuthManager()
 const rootElement = document.getElementById('app')
 
 if (!rootElement) {
@@ -558,8 +559,8 @@ async function refresh(root: HTMLElement): Promise<void> {
         view = { mode: 'list' }
         void refresh(root)
       },
-      onSignIn: async () => {
-        const result = await authAdapter.signIn()
+      onSignIn: async (providerId: ProviderId) => {
+        const result = await authAdapter.signIn(providerId)
         if (result) {
           session = { email: result.email }
           announce(`Signed in as ${result.email}`)

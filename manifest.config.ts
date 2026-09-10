@@ -34,7 +34,12 @@ const manifest: ExtensionManifest = {
   description: 'Configurable prompt buttons for claude.ai, run from a sidebar.',
   key: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5XVB/dXgxQE8jwyqw4Rpvz/OscKGE/KeOplSBusI8gn+2mqrdh9Pq0i+HIop95bsz/KbMml+uCvgJMLVgstHlO3TxGc1E5T5u13kL/g0CoZDd5khfx2SSJVAwSWoNs3ttZT72xJ3p6TgeJbj4++b1ECTEmU41DxEvChJcdsGk91La7wZg+9Flaqv0Eh2J/qCj/1eGcmLIBNv9BfuLRw1L3MGZSN/jJFEAnSFnIcKGtdz86/EexjTcctx4RTQf7b1LQeaaz93qjZ7mCzDBC7XfHnzkJI38qaScfSd6StGRiiaE1FoWxpVMrDRLSqte7V72Eio/TiaRNHp31kcnQ4l1wIDAQAB',
   permissions: ['sidePanel', 'storage', 'scripting', 'identity'],
-  host_permissions: ['https://claude.ai/*', 'https://claude-extension-git-main-luxqees-projects.vercel.app/*'],
+  host_permissions: [
+    'https://claude.ai/*',
+    'https://claude-extension-git-main-luxqees-projects.vercel.app/*',
+    // Clerk instance -- the OAuth token endpoint the sign-in flow calls.
+    'https://innocent-lamb-6401.clerk.accounts.dev/*',
+  ],
   background: {
     service_worker: 'src/background/service-worker.ts',
     type: 'module',

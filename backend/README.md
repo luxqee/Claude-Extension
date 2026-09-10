@@ -19,8 +19,31 @@ Set these in the Vercel project's Settings -> Environment Variables:
   Used to sign and verify the backend session tokens the extension gets
   from `POST /api/auth/session` and then sends on every other call. Keep
   it secret; it never ships in the extension. If it is unset the API
-  still works -- it just falls back to verifying a Google id_token on
+  still works -- it just falls back to verifying a provider id_token on
   every request, the pre-session-token behaviour.
+- `CLERK_ISSUER` -- optional. The Clerk instance's Frontend API origin,
+  e.g. `https://innocent-lamb-6401.clerk.accounts.dev` (dev) or your
+  custom domain (prod). When set, the backend also accepts Clerk
+  id_tokens, verified against `${CLERK_ISSUER}/.well-known/jwks.json`.
+  Leave unset to keep Google as the only sign-in.
+
+### Clerk sign-in (optional, multi-method)
+
+To offer SSO / Microsoft / email / etc alongside Google:
+
+1. In the Clerk Dashboard: **Configure -> OAuth Applications -> New
+   application**. Scopes: `openid`, `email`, `profile`. Add the redirect
+   URI `https://fhaeedmmhjjkhnopifppigddjbbmdegh.chromiumapp.org/`. It is
+   a **public** client (PKCE) -- no client secret is used by the
+   extension.
+2. Copy the **Client ID** into `CLERK_OAUTH_CLIENT_ID` in
+   `src/shared/auth/providers.ts` (and confirm `CLERK_DOMAIN` there
+   matches your instance). The Clerk button appears in the extension once
+   both are filled.
+3. Set `CLERK_ISSUER` in Vercel (same value as `CLERK_DOMAIN`, with the
+   `https://` prefix) and redeploy.
+4. Add the Clerk instance host to `host_permissions` in
+   `manifest.config.ts` if your instance domain differs from the default.
 
 ### Google OAuth consent screen
 

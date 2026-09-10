@@ -1,4 +1,6 @@
 import type { OrgSessionState } from '../shared/org-session'
+import { enabledProviders } from '../shared/auth/providers'
+import type { ProviderId } from '../shared/auth/providers'
 
 export interface SettingsPanelContext {
   onExport: () => void
@@ -7,7 +9,7 @@ export interface SettingsPanelContext {
   importError: string | null
   importSuccessCount: number | null
   session: { email: string } | null
-  onSignIn: () => void
+  onSignIn: (providerId: ProviderId) => void
   onSignOut: () => void
   orgSession: OrgSessionState | null
   onOpenManageOrg: () => void
@@ -46,17 +48,19 @@ export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement 
       authSection.appendChild(manageButton)
     }
   } else {
-    const signInButton = document.createElement('button')
-    signInButton.type = 'button'
-    signInButton.className = 'settings-action-button'
-    signInButton.textContent = 'Sign in with your organisation'
-    signInButton.addEventListener('click', context.onSignIn)
-    authSection.appendChild(signInButton)
+    const signInLabel = document.createElement('p')
+    signInLabel.className = 'settings-hint'
+    signInLabel.textContent = 'Sign in to find or set up your organisation.'
+    authSection.appendChild(signInLabel)
 
-    const signInHint = document.createElement('p')
-    signInHint.className = 'settings-hint'
-    signInHint.textContent = 'Uses your work Google account to find or set up your organisation.'
-    authSection.appendChild(signInHint)
+    for (const provider of enabledProviders()) {
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'settings-action-button'
+      button.textContent = provider.label
+      button.addEventListener('click', () => context.onSignIn(provider.id))
+      authSection.appendChild(button)
+    }
   }
   container.appendChild(authSection)
 
