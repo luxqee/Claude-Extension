@@ -72,6 +72,7 @@ let session: { email: string } | null = null
 let teamPrompts: OrgPromptsResult = { orgName: null, tabs: [], prompts: [] }
 let orgSession: OrgSessionState | null = null
 let orgMembers: OrgMember[] = []
+let manageOrgLoading = false
 let manageOrgAddError: string | null = null
 let orgPrompts: OrgPrompt[] = []
 let editingPromptId: string | null = null
@@ -245,6 +246,7 @@ async function refresh(root: HTMLElement): Promise<void> {
       {
         members: orgMembers,
         addError: manageOrgAddError,
+        loading: manageOrgLoading,
         orgTabs: teamPrompts.tabs,
         prompts: orgPrompts,
         editingPromptId,
@@ -584,12 +586,18 @@ async function refresh(root: HTMLElement): Promise<void> {
       },
       onOpenManageOrg: () => {
         clearRunErrors()
+        manageOrgLoading = true
         view = { mode: 'manage-org' }
         void refresh(root)
-        void refreshOrgMembers(root)
-        void refreshOrgPrompts(root)
-        void refreshOrgUsage(root)
-        void refreshOrgAnalytics(root)
+        void Promise.allSettled([
+          refreshOrgMembers(root),
+          refreshOrgPrompts(root),
+          refreshOrgUsage(root),
+          refreshOrgAnalytics(root),
+        ]).then(() => {
+          manageOrgLoading = false
+          if (view.mode === 'manage-org') void refresh(root)
+        })
       },
       onManageOrgBack: () => {
         manageOrgAddError = null

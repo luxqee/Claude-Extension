@@ -236,6 +236,62 @@ h1, h2, h3 {
   width: auto;
 }
 
+/* Custom-styled dropdown to match the rest of the UI. The closed control
+   is fully themed; the option list itself is the OS popup (unavoidable
+   without a full custom widget). */
+.edit-form select,
+.manage-org select {
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  color: var(--text-primary);
+  background-color: var(--surface-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 30px 7px 10px;
+  cursor: pointer;
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+  /* chevron, uses currentColor via a stroked path */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%23888' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+}
+
+.edit-form select:hover,
+.manage-org select:hover {
+  border-color: var(--border-strong);
+}
+
+.edit-form select:focus-visible,
+.manage-org select:focus-visible {
+  border-color: var(--accent);
+}
+
+.loading-line {
+  margin: 6px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.loading-line::after {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-left: 8px;
+  vertical-align: -1px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: loading-spin 0.7s linear infinite;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .add-button {
   border: none;
   border-radius: var(--radius-sm);

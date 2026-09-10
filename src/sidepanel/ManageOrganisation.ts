@@ -5,6 +5,7 @@ import type { OrgAnalytics } from '../shared/org-analytics'
 import { joinTabLabel, splitTabLabel } from '../shared/tab-label'
 
 export interface ManageOrgState {
+  loading: boolean
   members: OrgMember[]
   addError: string | null
   orgTabs: OrgTab[]
@@ -13,6 +14,13 @@ export interface ManageOrgState {
   promptFormError: string | null
   usageSnapshots: OrgUsageSnapshot[]
   analytics: OrgAnalytics | null
+}
+
+function loadingLine(text = 'Loading…'): HTMLElement {
+  const p = document.createElement('p')
+  p.className = 'loading-line'
+  p.textContent = text
+  return p
 }
 
 export interface ManageOrganisationContext {
@@ -46,6 +54,10 @@ function sectionHeading(text: string): HTMLElement {
 function renderMembers(state: ManageOrgState, context: ManageOrganisationContext): DocumentFragment {
   const frag = document.createDocumentFragment()
   frag.appendChild(sectionHeading('Members'))
+
+  if (state.loading && state.members.length === 0) {
+    frag.appendChild(loadingLine())
+  }
 
   const list = document.createElement('ul')
   list.className = 'roster-list'
@@ -137,6 +149,10 @@ function renderMembers(state: ManageOrgState, context: ManageOrganisationContext
 function renderSharedTabs(state: ManageOrgState, context: ManageOrganisationContext): DocumentFragment {
   const frag = document.createDocumentFragment()
   frag.appendChild(sectionHeading('Shared tabs'))
+
+  if (state.loading && state.orgTabs.length === 0) {
+    frag.appendChild(loadingLine())
+  }
 
   const list = document.createElement('ul')
   list.className = 'tab-manager-list'
@@ -230,6 +246,10 @@ function renderSharedTabs(state: ManageOrgState, context: ManageOrganisationCont
 function renderPrompts(state: ManageOrgState, context: ManageOrganisationContext): DocumentFragment {
   const frag = document.createDocumentFragment()
   frag.appendChild(sectionHeading('Shared prompts'))
+
+  if (state.loading && state.prompts.length === 0) {
+    frag.appendChild(loadingLine())
+  }
 
   const tabNameById = new Map(state.orgTabs.map((t) => [t.id, t.name]))
 
@@ -395,10 +415,12 @@ function renderAnalytics(state: ManageOrgState): DocumentFragment {
 
   const a = state.analytics
   if (!a) {
-    const hint = document.createElement('p')
-    hint.className = 'settings-hint'
-    hint.textContent = 'No analytics yet.'
-    frag.appendChild(hint)
+    frag.appendChild(state.loading ? loadingLine() : (() => {
+      const hint = document.createElement('p')
+      hint.className = 'settings-hint'
+      hint.textContent = 'No analytics yet.'
+      return hint
+    })())
     return frag
   }
 
@@ -479,10 +501,14 @@ function renderUsageSnapshots(state: ManageOrgState): DocumentFragment {
   frag.appendChild(sectionHeading('Member rate-limit usage'))
 
   if (state.usageSnapshots.length === 0) {
-    const empty = document.createElement('p')
-    empty.className = 'settings-hint'
-    empty.textContent = 'No usage reported yet.'
-    frag.appendChild(empty)
+    if (state.loading) {
+      frag.appendChild(loadingLine())
+    } else {
+      const empty = document.createElement('p')
+      empty.className = 'settings-hint'
+      empty.textContent = 'No usage reported yet.'
+      frag.appendChild(empty)
+    }
     return frag
   }
 
