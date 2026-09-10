@@ -1,13 +1,15 @@
 import type { OrgPrompt, OrgTab } from '../shared/org-prompts'
+import { badgeFor } from '../shared/badge'
 
 function renderPromptRow(prompt: OrgPrompt, onRun: (p: OrgPrompt) => void): HTMLElement {
   const item = document.createElement('li')
   item.className = 'team-row'
 
-  if (prompt.type === 'skill') {
+  const badgeChar = badgeFor(prompt.type, prompt.promptText)
+  if (badgeChar) {
     const badge = document.createElement('span')
     badge.className = 'skill-badge'
-    badge.textContent = prompt.promptText.trim().startsWith('@') ? '@' : '/'
+    badge.textContent = badgeChar
     badge.setAttribute('aria-hidden', 'true')
     item.appendChild(badge)
   }

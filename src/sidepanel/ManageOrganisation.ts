@@ -8,6 +8,8 @@ import { createDropdown } from './Dropdown'
 
 export interface ManageOrgState {
   loading: boolean
+  /** A shared-tab or shared-prompt write is in flight. */
+  busy: boolean
   members: OrgMember[]
   addError: string | null
   orgTabs: OrgTab[]
@@ -152,8 +154,8 @@ function renderSharedTabs(state: ManageOrgState, context: ManageOrganisationCont
   const frag = document.createDocumentFragment()
   frag.appendChild(sectionHeading('Shared tabs'))
 
-  if (state.loading && state.orgTabs.length === 0) {
-    frag.appendChild(loadingLine())
+  if ((state.loading && state.orgTabs.length === 0) || state.busy) {
+    frag.appendChild(loadingLine(state.busy ? 'Saving...' : 'Loading...'))
   }
 
   const ids = state.orgTabs.map((t) => t.id)
@@ -273,8 +275,8 @@ function renderPrompts(state: ManageOrgState, context: ManageOrganisationContext
   const frag = document.createDocumentFragment()
   frag.appendChild(sectionHeading('Shared prompts'))
 
-  if (state.loading && state.prompts.length === 0) {
-    frag.appendChild(loadingLine())
+  if ((state.loading && state.prompts.length === 0) || state.busy) {
+    frag.appendChild(loadingLine(state.busy ? 'Saving...' : 'Loading...'))
   }
 
   const tabNameById = new Map(state.orgTabs.map((t) => [t.id, t.name]))
@@ -532,7 +534,7 @@ function renderAnalytics(state: ManageOrgState): DocumentFragment {
 
 function renderUsageSnapshots(state: ManageOrgState): DocumentFragment {
   const frag = document.createDocumentFragment()
-  frag.appendChild(sectionHeading('Member rate-limit usage'))
+  frag.appendChild(sectionHeading('Member usage limits'))
 
   if (state.usageSnapshots.length === 0) {
     if (state.loading) {

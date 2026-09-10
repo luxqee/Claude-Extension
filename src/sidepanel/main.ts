@@ -74,6 +74,7 @@ let teamPrompts: OrgPromptsResult = { orgName: null, tabs: [], prompts: [] }
 let orgSession: OrgSessionState | null = null
 let orgMembers: OrgMember[] = []
 let manageOrgLoading = false
+let manageOrgBusy = false
 let manageOrgAddError: string | null = null
 let orgPrompts: OrgPrompt[] = []
 let editingPromptId: string | null = null
@@ -202,6 +203,24 @@ async function refreshOrgAnalytics(root: HTMLElement): Promise<void> {
   if (view.mode === 'manage-org') await refresh(root)
 }
 
+/** Runs a shared-tab / shared-prompt write with a "Saving..." spinner in
+ * the Manage Organisation view, then reloads the org data. */
+async function runOrgWrite(
+  root: HTMLElement,
+  fn: (idToken: string) => Promise<void>,
+): Promise<void> {
+  const idToken = await authAdapter.getValidToken()
+  if (!idToken) return
+  manageOrgBusy = true
+  if (view.mode === 'manage-org') await refresh(root)
+  try {
+    await fn(idToken)
+  } finally {
+    manageOrgBusy = false
+    await refreshOrgPrompts(root)
+  }
+}
+
 async function reportCurrentUsage(): Promise<void> {
   const idToken = await authAdapter.getValidToken()
   if (!idToken) return
@@ -263,6 +282,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         members: orgMembers,
         addError: manageOrgAddError,
         loading: manageOrgLoading,
+        busy: manageOrgBusy,
         orgTabs: teamPrompts.tabs,
         prompts: orgPrompts,
         editingPromptId,
@@ -665,18 +685,14 @@ async function refresh(root: HTMLElement): Promise<void> {
         manageOrgAddError = added ? null : 'Something went wrong adding that member. Check the console for details.'
         await refreshOrgMembers(root)
       },
-      onCreateOrgTab: async (name: string) => {
-        const idToken = await authAdapter.getValidToken()
-        if (!idToken) return
-        await createOrgTab(idToken, { name })
-        await refreshOrgPrompts(root)
-      },
-      onRenameOrgTab: async (id: string, name: string, emoji: string | null) => {
-        const idToken = await authAdapter.getValidToken()
-        if (!idToken) return
-        await updateOrgTab(idToken, id, { name, emoji })
-        await refreshOrgPrompts(root)
-      },
+      onCreateOrgTab: (name: string) =>
+        runOrgWrite(root, async (idToken) => {
+          await createOrgTab(idToken, { name })
+        }),
+      onRenameOrgTab: (id: string, name: string, emoji: string | null) =>
+        runOrgWrite(root, async (idToken) => {
+          await updateOrgTab(idToken, id, { name, emoji })
+        }),
       onDeleteOrgTab: async (id: string) => {
         const tab = teamPrompts.tabs.find((t) => t.id === id)
         if (!tab) return
@@ -686,41 +702,36 @@ async function refresh(root: HTMLElement): Promise<void> {
             ? `Delete the shared "${tab.name}" tab?`
             : `Delete the shared "${tab.name}" tab? Its ${count} prompt${count === 1 ? '' : 's'} move to the first remaining tab.`
         if (!window.confirm(message)) return
-        const idToken = await authAdapter.getValidToken()
-        if (!idToken) return
-        const result = await deleteOrgTab(idToken, id)
-        if (!result.ok && result.status === 400) {
-          announce('An organisation must keep at least one shared tab.')
-        }
-        await refreshOrgPrompts(root)
+        await runOrgWrite(root, async (idToken) => {
+          const result = await deleteOrgTab(idToken, id)
+          if (!result.ok && result.status === 400) {
+            announce('An organisation must keep at least one shared tab.')
+          }
+        })
       },
-      onReorderOrgTabs: async (orderedIds: string[]) => {
-        const idToken = await authAdapter.getValidToken()
-        if (!idToken) return
-        await reorderOrgTabs(idToken, orderedIds)
-        await refreshOrgPrompts(root)
-      },
-      onCreatePrompt: async (data) => {
-        const idToken = await authAdapter.getValidToken()
-        if (!idToken) return
-        const created = await createOrgPrompt(idToken, data)
-        promptFormError = created ? null : 'Something went wrong adding that prompt. Check the console for details.'
-        await refreshOrgPrompts(root)
-      },
-      onUpdatePrompt: async (id, data) => {
-        const idToken = await authAdapter.getValidToken()
-        if (!idToken) return
-        const updated = await updateOrgPrompt(idToken, id, data)
-        if (updated) editingPromptId = null
-        promptFormError = updated ? null : 'Something went wrong saving that prompt. Check the console for details.'
-        await refreshOrgPrompts(root)
-      },
-      onDeletePrompt: async (id: string) => {
-        const idToken = await authAdapter.getValidToken()
-        if (!idToken) return
-        await deleteOrgPrompt(idToken, id)
-        await refreshOrgPrompts(root)
-      },
+      onReorderOrgTabs: (orderedIds: string[]) =>
+        runOrgWrite(root, async (idToken) => {
+          await reorderOrgTabs(idToken, orderedIds)
+        }),
+      onCreatePrompt: (data) =>
+        runOrgWrite(root, async (idToken) => {
+          const created = await createOrgPrompt(idToken, data)
+          promptFormError = created
+            ? null
+            : 'Something went wrong adding that prompt. Check the console for details.'
+        }),
+      onUpdatePrompt: (id, data) =>
+        runOrgWrite(root, async (idToken) => {
+          const updated = await updateOrgPrompt(idToken, id, data)
+          if (updated) editingPromptId = null
+          promptFormError = updated
+            ? null
+            : 'Something went wrong saving that prompt. Check the console for details.'
+        }),
+      onDeletePrompt: (id: string) =>
+        runOrgWrite(root, async (idToken) => {
+          await deleteOrgPrompt(idToken, id)
+        }),
       onEditPromptClick: (prompt: OrgPrompt) => {
         editingPromptId = prompt.id
         promptFormError = null

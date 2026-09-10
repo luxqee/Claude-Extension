@@ -20,7 +20,7 @@ export const GOOGLE_CLIENT_ID =
 // Applications → your app. The publishable key is public and safe here,
 // but is not needed for the OAuth flow, so it isn't stored.
 export const CLERK_DOMAIN = 'innocent-lamb-6401.clerk.accounts.dev'
-export const CLERK_OAUTH_CLIENT_ID = ''
+export const CLERK_OAUTH_CLIENT_ID = 'xiyI62cGM2x1Od4z'
 
 export function clerkEnabled(): boolean {
   return CLERK_DOMAIN.length > 0 && CLERK_OAUTH_CLIENT_ID.length > 0
@@ -29,7 +29,11 @@ export function clerkEnabled(): boolean {
 export function enabledProviders(): ProviderConfig[] {
   const providers: ProviderConfig[] = [{ id: 'google', label: 'Continue with Google' }]
   if (clerkEnabled()) {
-    providers.push({ id: 'clerk', label: 'Continue with SSO or email' })
+    // One button covers every method enabled on the Clerk instance --
+    // email, GitHub / Microsoft / other social, and enterprise SSO. Turn
+    // them on in the Clerk Dashboard (Social Connections, SSO Connections);
+    // no code change here.
+    providers.push({ id: 'clerk', label: 'Continue with SSO, GitHub or email' })
   }
   return providers
 }

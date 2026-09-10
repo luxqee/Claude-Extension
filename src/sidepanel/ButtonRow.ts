@@ -1,4 +1,5 @@
 import type { Button } from '../shared/types'
+import { badgeFor } from '../shared/badge'
 
 export interface ButtonRowContext {
   isRunning: boolean
@@ -56,10 +57,11 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
     row.appendChild(dragHandle)
   }
 
-  if (button.type === 'skill') {
+  const badgeChar = badgeFor(button.type, button.prompt)
+  if (badgeChar) {
     const badge = document.createElement('span')
     badge.className = 'skill-badge'
-    badge.textContent = button.prompt.trim().startsWith('@') ? '@' : '/'
+    badge.textContent = badgeChar
     badge.setAttribute('aria-hidden', 'true')
     row.appendChild(badge)
   }
