@@ -117,6 +117,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       INSERT INTO org_members (org_id, email, role, status) VALUES (${createdOrg.id}, ${email.toLowerCase()}, 'director', 'active')
     `
 
+    // Every org needs at least one shared tab -- the Manage Organisation UI
+    // and the prompt-tab picker assume one exists, and shared prompts are
+    // always filed under a tab. Without this a brand-new org has none until
+    // the first prompt lazily creates one.
+    await sql`
+      INSERT INTO org_tabs (org_id, name, sort_order) VALUES (${createdOrg.id}, 'General', 0)
+    `
+
     // Invited emails go in as `pending`, not `active`: the person confirms
     // by signing in and the director approves them. Adding them straight to
     // `active` would let anyone who can reach onboarding (any public-domain

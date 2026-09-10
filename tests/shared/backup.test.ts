@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseBackup, serializeBackup } from '../../src/shared/backup'
+import showcase from '../../examples/showcase.json'
 import type { Button, ToolTab } from '../../src/shared/types'
 
 const GENERAL: ToolTab = { id: 't1', name: 'General', emoji: null, order: 0 }
@@ -148,9 +149,7 @@ describe('parseBackup - errors (nothing is written on bad input)', () => {
 
 describe('examples/showcase.json', () => {
   it('is a valid v2 backup that imports cleanly', () => {
-    const { readFileSync } = require('node:fs')
-    const json = readFileSync(new URL('../../examples/showcase.json', import.meta.url), 'utf8')
-    const result = parseBackup(json)
+    const result = parseBackup(JSON.stringify(showcase))
     expect(result.tools.length).toBeGreaterThan(15)
     expect(result.tools.some((t) => t.type === 'skill')).toBe(true)
     // every tool's tab exists in the tab list

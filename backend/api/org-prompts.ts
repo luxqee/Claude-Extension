@@ -119,6 +119,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       return
     }
 
+    // Heal an org that has no shared tab (created before onboarding seeded
+    // one, or a stale DB): the Manage Organisation UI and the prompt-tab
+    // picker both assume at least one exists. Same "General" default the
+    // POST path falls back to.
+    // ponytail: NOT EXISTS, not a unique constraint -- two simultaneous
+    // first-loads of a brand-new org could make two "General" tabs. Add a
+    // unique (org_id, name) index if that ever actually happens.
+    await sql`
+      INSERT INTO org_tabs (org_id, name, sort_order)
+      SELECT ${orgId}, 'General', 0
+      WHERE NOT EXISTS (SELECT 1 FROM org_tabs WHERE org_id = ${orgId})
+    `
+
     const results = await sql.transaction([
       sql`SELECT set_config('app.current_org_id', ${orgId}, true)`,
       sql`SELECT id, name, emoji, sort_order FROM org_tabs WHERE org_id = ${orgId} ORDER BY sort_order ASC`,
