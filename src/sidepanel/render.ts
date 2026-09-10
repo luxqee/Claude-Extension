@@ -10,7 +10,6 @@ const AIRE_LOGO_SVG =
   '<path transform="translate(373.398 -255.752) scale(2.1244)" d="M126.5,121.8h92.3c2.4,0,4.3,1.6,4.3,3.5v17.8c0,1.9-1.9,3.5-4.3,3.5h-61.5v14.6h57.9c2.4,0,4.3,1.6,4.3,3.5v15.6c0,1.9-1.9,3.5-4.3,3.5h-57.9v15.3h62.4c2.4,0,4.3,1.6,4.3,3.5v17.8c0,1.9-1.9,3.5-4.3,3.5h-93.2c-2.4,0-4.3-1.6-4.3-3.5v-94.9c0-1.9,1.9-3.5,4.3-3.5h0Z"></path>' +
   '</svg>'
 import { renderButtonRow } from './ButtonRow'
-import { ICON } from './icons'
 import { renderEditForm } from './EditForm'
 import { renderSettingsPanel } from './SettingsPanel'
 import { renderTeamSection } from './TeamSection'
@@ -230,14 +229,14 @@ export function renderApp(
   const settingsButton = document.createElement('button')
   settingsButton.type = 'button'
   settingsButton.className = 'icon-button settings-button'
-  settingsButton.innerHTML = ICON.gear
+  settingsButton.textContent = '⚙'
   settingsButton.setAttribute('aria-label', 'Settings')
   settingsButton.addEventListener('click', context.onOpenSettings)
   headerActions.appendChild(settingsButton)
   const addButton = document.createElement('button')
   addButton.type = 'button'
   addButton.className = 'add-button'
-  addButton.textContent = '+ Add tool'
+  addButton.innerHTML = '<span class="gi">+</span> Add tool'
   addButton.addEventListener('click', context.onAddClick)
   headerActions.appendChild(addButton)
   header.appendChild(headerActions)

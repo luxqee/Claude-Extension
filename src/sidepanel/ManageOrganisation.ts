@@ -4,7 +4,6 @@ import type { OrgUsageSnapshot } from '../shared/usage-report'
 import type { OrgAnalytics } from '../shared/org-analytics'
 import { joinTabLabel, splitTabLabel } from '../shared/tab-label'
 import { createDropdown } from './Dropdown'
-import { ICON } from './icons'
 
 export interface ManageOrgState {
   loading: boolean
@@ -193,7 +192,7 @@ function renderSharedTabs(state: ManageOrgState, context: ManageOrganisationCont
     const up = document.createElement('button')
     up.type = 'button'
     up.className = 'icon-button'
-    up.innerHTML = ICON.chevronUp
+    up.innerHTML = '<span class="gi">↑</span>'
     up.setAttribute('aria-label', `Move ${tab.name} up`)
     up.disabled = index === 0
     up.addEventListener('click', () => context.onMoveOrgTab(tab.id, 'up'))
@@ -202,7 +201,7 @@ function renderSharedTabs(state: ManageOrgState, context: ManageOrganisationCont
     const down = document.createElement('button')
     down.type = 'button'
     down.className = 'icon-button'
-    down.innerHTML = ICON.chevronDown
+    down.innerHTML = '<span class="gi">↓</span>'
     down.setAttribute('aria-label', `Move ${tab.name} down`)
     down.disabled = index === state.orgTabs.length - 1
     down.addEventListener('click', () => context.onMoveOrgTab(tab.id, 'down'))
@@ -567,7 +566,7 @@ export function renderManageOrganisation(
   const back = document.createElement('button')
   back.type = 'button'
   back.className = 'settings-back-button'
-  back.innerHTML = ICON.arrowLeft + ' Back'
+  back.innerHTML = '<span class="gi">←</span> Back'
   back.addEventListener('click', context.onBack)
   container.appendChild(back)
 

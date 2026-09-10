@@ -217,6 +217,15 @@ h1, h2, h3 {
   flex-shrink: 0;
 }
 
+/* Glyph icons (⚙ ☰ ↑ ↓ ← / @ +) render from a symbol-complete system
+   font instead of Alfabet, whose demo subset lacks or mis-draws them. */
+.gi,
+.skill-badge,
+.drag-handle,
+.settings-button {
+  font-family: "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols2", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
 .team-section {
   margin-top: 14px;
   padding-top: 10px;

@@ -1,5 +1,4 @@
 import type { Button } from '../shared/types'
-import { ICON } from './icons'
 
 export interface ButtonRowContext {
   isRunning: boolean
@@ -33,7 +32,7 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
     const dragHandle = document.createElement('button')
     dragHandle.type = 'button'
     dragHandle.className = 'drag-handle'
-    dragHandle.innerHTML = ICON.grip
+    dragHandle.textContent = '☰'
     dragHandle.dataset.buttonId = button.id
     dragHandle.setAttribute('aria-label', `Reorder ${button.name}. Press arrow keys to move, or drag.`)
     dragHandle.draggable = true

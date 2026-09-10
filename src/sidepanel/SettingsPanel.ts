@@ -113,7 +113,7 @@ export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement 
   const backButton = document.createElement('button')
   backButton.type = 'button'
   backButton.className = 'settings-back-button'
-  backButton.textContent = 'Back'
+  backButton.innerHTML = '<span class="gi">←</span> Back'
   backButton.addEventListener('click', context.onBack)
   container.appendChild(backButton)
 
