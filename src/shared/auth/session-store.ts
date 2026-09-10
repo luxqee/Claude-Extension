@@ -56,7 +56,8 @@ export async function exchangeIdTokenForSession(idToken: string): Promise<Sessio
   try {
     response = await fetch(`${API_BASE_URL}/api/auth/session`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${idToken}` },
+      headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+      body: '{}',
     })
   } catch (error) {
     console.error('[Claude Tools] session-token exchange request failed', error)

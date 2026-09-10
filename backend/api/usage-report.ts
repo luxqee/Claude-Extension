@@ -65,7 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       sql`SELECT set_config('app.current_org_id', ${membership.org_id}, true)`,
       sql`
         INSERT INTO usage_snapshots (org_id, email, session_percent, weekly_percent, spend_percent, updated_at)
-        VALUES (${membership.org_id}, ${email}, ${sessionPercent}, ${weeklyPercent}, ${spendPercent}, now())
+        VALUES (${membership.org_id}, ${email.toLowerCase()}, ${sessionPercent}, ${weeklyPercent}, ${spendPercent}, now())
         ON CONFLICT (org_id, email) DO UPDATE SET
           session_percent = excluded.session_percent,
           weekly_percent = excluded.weekly_percent,

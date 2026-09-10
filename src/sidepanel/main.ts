@@ -88,14 +88,28 @@ const runState = new Map<string, RunState>()
 // Analytics fire when an inserted prompt is actually sent, not on click.
 // The content script watches the chat input and posts PROMPT_SENT with
 // the run token; the callback stored here then records the run.
-const pendingRuns = new Map<string, () => void>()
+const pendingRuns = new Map<string, { fire: () => void; timer: ReturnType<typeof setTimeout> }>()
+
+// A prompt that is inserted and then never sent (edited away, abandoned)
+// gets no PROMPT_SENT, so its entry would sit in this map for the life of
+// the side panel. The content-script send watcher gives up after 5
+// minutes; drop our entry a little after that so the map can't grow
+// without bound over a long session.
+const PENDING_RUN_TTL_MS = 6 * 60 * 1000
+
+function registerPendingRun(runToken: string, fire: () => void): void {
+  const timer = setTimeout(() => pendingRuns.delete(runToken), PENDING_RUN_TTL_MS)
+  pendingRuns.set(runToken, { fire, timer })
+}
+
 chrome.runtime.onMessage.addListener((message) => {
   const m = message as { type?: unknown; runToken?: unknown }
   if (m?.type === 'PROMPT_SENT' && typeof m.runToken === 'string') {
-    const callback = pendingRuns.get(m.runToken)
-    if (callback) {
+    const entry = pendingRuns.get(m.runToken)
+    if (entry) {
+      clearTimeout(entry.timer)
       pendingRuns.delete(m.runToken)
-      callback()
+      entry.fire()
     }
   }
 })
@@ -346,7 +360,7 @@ async function refresh(root: HTMLElement): Promise<void> {
 
           if (response.ok) {
             runState.set(button.id, { isRunning: false, error: null })
-            pendingRuns.set(runToken, () => {
+            registerPendingRun(runToken, () => {
               void recordButtonRun(button.id).then(() => {
                 if (view.mode === 'list') void refresh(root)
               })
@@ -795,7 +809,7 @@ async function refresh(root: HTMLElement): Promise<void> {
             }
             if (response.ok) {
               announce(`Inserted ${prompt.name}.`)
-              pendingRuns.set(runToken, () => {
+              registerPendingRun(runToken, () => {
                 void authAdapter.getValidToken().then((token) => {
                   if (token) void reportPromptRun(token, prompt.id)
                 })

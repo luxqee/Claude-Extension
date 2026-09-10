@@ -1,247 +1,232 @@
-# Claude Tools Sidebar
+# AIRE Extension
 
 A Chrome extension that adds a sidebar of configurable buttons to
 [claude.ai](https://claude.ai). Each button holds a saved prompt or a
 skill invocation; clicking it types that text into Claude's chat box so
-you can review (and edit) it before sending — nothing is ever sent
-automatically.
+you can review (and edit) it before sending — **nothing is ever sent
+automatically**.
 
-## Features
+- **Personal buttons** work with zero sign-in, zero backend, zero data
+  leaving your browser (`chrome.storage.local`).
+- **Organisations** (optional): sign in to unlock a shared, admin-managed
+  prompt list, membership, and usage/analytics for admins. This part
+  talks to a hosted backend — see [Organisations](#organisations).
 
-- **Prompt and skill buttons** — a button either holds a plain prompt or
-  a skill invocation (e.g. `/doc-summary`). Skill buttons show a small
-  `/` badge in the list; picking "Skill" as the type in the add/edit
-  form lets claude.ai's own slash-command picker take over once the text
-  is inserted.
-- **Insert, don't send** — clicking a button types its text into the
-  chat box and stops. You press Send yourself.
-- **Drag-and-drop reordering**, with keyboard support (focus a row, use
-  Arrow Up / Arrow Down).
-- **Export / import** as JSON, for backing up your buttons or sharing a
-  set with someone else.
-- Your personal buttons run entirely client-side — no account needed,
-  no backend, no data leaves your browser. Buttons are stored with
-  `chrome.storage.local`.
-- **Organisations** — optionally signing in with your work Google
-  account unlocks a Team section of shared prompts, plus real
-  membership: a first sign-in at a company domain becomes its
-  admin and can approve teammates who sign in afterward; an admin
-  can also add anyone by email directly, manage the shared prompt
-  list, and see per-member usage. See [Organisations](#organisations)
-  below for the full model.
+---
 
-## Installing (unpacked, for now)
+## For testers — get it running
 
-This extension isn't published to the Chrome Web Store yet, so it's
-loaded as an unpacked extension from a local build. These steps are the
-same on every computer — macOS, Windows, or Linux — the only difference
-is how you install the two prerequisites (Node.js and pnpm).
-
-### 1. Install prerequisites (first time on a given computer only)
-
-**macOS:**
-
-1. Open **Terminal** (Spotlight search → type "Terminal" → Enter, or
-   Applications → Utilities → Terminal).
-2. If you don't already have [Homebrew](https://brew.sh) installed, install
-   it by pasting this into Terminal and pressing Enter (it will ask for
-   your Mac password):
-
-   ```bash
-   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-   ```
-
-3. Install Node.js, pnpm, and git:
-
-   ```bash
-   brew install node pnpm git
-   ```
-
-**Windows:** install [Node.js](https://nodejs.org) (LTS version), then
-enable pnpm via `corepack enable` in a terminal (or `npm install -g pnpm`).
-Git is bundled with [Git for Windows](https://git-scm.com/download/win).
-
-### 2. Get the code
+You need **Node.js 20 or 22 LTS** and **pnpm 9+**. Node 24 currently
+breaks pnpm's pre-run step on some machines; stick to an LTS release.
 
 ```bash
 git clone https://github.com/luxqee/Claude-Extension.git
 cd Claude-Extension
-```
-
-(Already have it cloned on this computer? Just `cd` into that folder and
-run `git pull` instead, to get the latest changes.)
-
-### 3. Install dependencies and build
-
-```bash
 pnpm install
 pnpm run build
 ```
 
-This produces a `dist/` folder — that's what Chrome loads, not the repo
-root.
+Then in Chrome:
 
-### 4. Load it into Chrome
+1. Open `chrome://extensions`
+2. Turn on **Developer mode** (top-right)
+3. Click **Load unpacked**
+4. Select the **`dist/`** folder (not the repo root)
 
-In Chrome, go to `chrome://extensions`, turn on **Developer mode**
-(top right), click **Load unpacked**, and select the `dist/` folder.
+Open a claude.ai tab and click the extension's toolbar icon to open the
+sidebar. After any later `pnpm run build`, click the reload icon on the
+extension's card in `chrome://extensions`.
 
-Chrome will show an **ID** under the extension's name — it should read
-`fhaeedmmhjjkhnopifppigddjbbmdegh`. This ID is pinned in the code (via
-the `key` field in `manifest.config.ts`) so it's identical no matter
-which computer loads this build — that's what makes step 5 below only
-ever need doing once, ever, rather than once per computer.
+That's the whole tester setup. You do **not** register anything, create
+any account, deploy anything, or edit any config. Organisation sign-in
+uses a backend that is already deployed and shared by all testers.
 
-### 5. Open claude.ai
+**Prerequisites, if you don't have them:**
 
-The extension's icon becomes active on claude.ai pages only; click it to
-open the sidebar (or it opens automatically depending on your Chrome
-version's side panel behavior).
+- **macOS:** `brew install node@22 pnpm git`
+- **Windows:** install [Node.js 22 LTS](https://nodejs.org), then
+  `corepack enable` (or `npm install -g pnpm`). Git ships with
+  [Git for Windows](https://git-scm.com/download/win).
+- **Linux:** install Node 22 from your distro or
+  [nvm](https://github.com/nvm-sh/nvm) (`nvm install 22`), then
+  `corepack enable`.
 
-**After rebuilding** (`pnpm run build` again), go back to
-`chrome://extensions` and click the reload icon on the extension's card
-— Chrome doesn't pick up a new build automatically.
+### If organisation sign-in fails
 
-### Google sign-in setup (one-time, only if it's not already working)
+Personal buttons still work regardless. If **sign-in itself** errors:
 
-Organisation sign-in (see [Organisations](#organisations) below) needs a
-Google OAuth redirect URI registered once, against the extension's ID
-above. If sign-in already works on a computer you've set up before, skip
-this — it'll keep working on every other computer too, since the ID
-never changes.
+- `redirect_uri_mismatch` or `access_denied` → this is a **one-time
+  developer setup** item that hasn't been done (or the Google consent
+  screen is still in "Testing" mode). It is not something a tester can
+  fix. Tell the developer. See
+  [For the developer](#for-the-developer--one-time-setup).
+- "Reload the Claude tab and try again" → reload the claude.ai tab (the
+  content script only injects into tabs opened *after* the extension was
+  loaded/reloaded), then retry.
 
-If sign-in fails with an error mentioning `redirect_uri_mismatch`:
+---
 
-1. Go to [console.cloud.google.com](https://console.cloud.google.com) →
-   **APIs & Services → Credentials** → open this project's OAuth 2.0
-   Client ID (type "Web app").
-2. Under **Authorized redirect URIs**, click **+ Add URI** and paste:
+## For the developer — one-time setup
+
+Do these **once**. After that, any number of testers on any number of
+machines can clone-build-run with no further per-tester work, because the
+extension ID is pinned (`key` in `manifest.config.ts`) so every build has
+the same ID and the same single OAuth redirect URI.
+
+### 1. Backend (Vercel + Neon)
+
+1. Create a **Neon** Postgres database. Run `backend/schema.sql` against
+   it once (Neon SQL Editor, or `psql "$DATABASE_URL" -f backend/schema.sql`).
+   The `DATABASE_URL` role must be a plain non-superuser without
+   `BYPASSRLS`, or row-level security is silently defeated.
+2. Create a **Vercel** project from this repo with **Root Directory =
+   `backend`**. It deploys on every push to `main`.
+3. Set these environment variables in the Vercel project
+   (Settings → Environment Variables):
+
+   | Variable | Required | Value |
+   |---|---|---|
+   | `DATABASE_URL` | yes | Neon connection string |
+   | `SESSION_JWT_SECRET` | yes | `openssl rand -hex 32` — signs 14-day session tokens |
+   | `GOOGLE_OAUTH_CLIENT_ID` | for Google sign-in | same client ID as in `src/shared/auth/providers.ts` |
+   | `CLERK_ISSUER` | for Clerk sign-in | e.g. `https://your-instance.clerk.accounts.dev` |
+   | `CLERK_OAUTH_CLIENT_ID` | for Clerk sign-in | from Clerk → OAuth Applications |
+   | `CLERK_OAUTH_CLIENT_SECRET` | only if the Clerk OAuth app is confidential | from the same place |
+
+4. Put the deployed URL in **`src/shared/api-base.ts`** (`API_BASE_URL`)
+   and in `host_permissions` in `manifest.config.ts`. Commit. Testers
+   build from this, so their extension points at your backend.
+
+### 2. Google sign-in
+
+1. Google Cloud Console → **APIs & Services → Credentials** → create an
+   **OAuth 2.0 Client ID** (Web application).
+2. Add the redirect URI (exact, note the trailing slash):
    ```
    https://fhaeedmmhjjkhnopifppigddjbbmdegh.chromiumapp.org/
    ```
-3. Click **Save** at the bottom of the page, wait about a minute, then
-   try signing in again.
+   This is the pinned extension ID — it never changes between machines,
+   so this URI is added **once, ever**.
+3. Put the client ID in `src/shared/auth/providers.ts` (`GOOGLE_CLIENT_ID`)
+   and in Vercel as `GOOGLE_OAUTH_CLIENT_ID`.
+4. **OAuth consent screen → Publishing status → Publish app.** The scopes
+   used (`openid`, `email`) are non-sensitive, so publishing takes effect
+   immediately with no Google review. While it stays in "Testing", only
+   Google accounts you manually add under *Test users* can sign in — that
+   is exactly the per-tester work this setup is meant to avoid, so
+   publish.
+
+### 3. Clerk sign-in (optional — adds SSO / Microsoft / GitHub / email)
+
+1. Clerk Dashboard → **Configure → OAuth Applications → New application**.
+   Scopes `openid email profile`. Redirect URI
+   `https://fhaeedmmhjjkhnopifppigddjbbmdegh.chromiumapp.org/`. Public
+   client (PKCE).
+2. Copy the **Client ID** into `src/shared/auth/providers.ts`
+   (`CLERK_OAUTH_CLIENT_ID`); set `CLERK_DOMAIN` there to your instance
+   host. The Clerk button appears once both are filled.
+3. Set `CLERK_ISSUER` (and `CLERK_OAUTH_CLIENT_SECRET` if the app is
+   confidential) in Vercel. Add your instance host to `host_permissions`
+   in `manifest.config.ts` if it differs from the default.
+4. Enable the connections you want in the Clerk Dashboard (Social
+   Connections, SSO Connections) — no code change.
+
+### Secrets
+
+Nothing secret lives in this repo. Client IDs and the public key in
+`manifest.config.ts` are safe to commit. `SESSION_JWT_SECRET`,
+`DATABASE_URL`, and any Clerk **secret** key live only in Vercel env
+vars. There is no root `.env` file to create — if you have a stray
+`.env.local` from earlier tooling, delete it (and rotate any key that was
+in it).
+
+---
 
 ## Using it
 
-- **Add a button:** open the sidebar, click **Add**, choose **Prompt**
-  or **Skill**, give it a name, and enter the text to insert. For a
-  skill, this is the slash-invocation itself (e.g. `/doc-summary`).
-- **Run a button:** click its name. This types the saved text into
-  claude.ai's chat box — for a skill invocation, claude.ai's own
-  autocomplete picker takes over from there, exactly as if you'd typed
-  `/` yourself. You still press Send.
-- **Edit or delete:** use the buttons in each row.
+- **Add a button:** sidebar → **Add** → **Prompt** or **Skill** → name +
+  text to insert. For a skill, the text is the slash-invocation itself
+  (e.g. `/doc-summary`); claude.ai's own autocomplete takes over after
+  insertion.
+- **Run a button:** click its name — the text is typed into claude.ai's
+  chat box and nothing else. You press Send.
 - **Reorder:** drag a row by its handle, or focus it and use Arrow
   Up/Down.
-- **Export / import:** in Settings, export writes a JSON file of all
-  your buttons; import adds the buttons from a JSON file to your
-  existing list. Files exported before skill buttons existed still
-  import fine — entries with no type default to Prompt.
+- **Export / import:** Settings → Export writes a JSON file of all your
+  buttons; Import merges buttons from a JSON file into your list. Old
+  exports without a `type` import as Prompt.
 
-### Troubleshooting
-
-**"Could not establish connection. Receiving end does not exist" /
-"Reload the Claude tab and try again"** — the extension talks to
-claude.ai through a content script that Chrome only injects into tabs
-loaded *after* the extension was installed or last reloaded. If you see
-this:
-
-- Reload the claude.ai tab (F5), then try the button again.
-- If that doesn't help, confirm you loaded the `dist/` folder (not the
-  repo root) as the unpacked extension, and that you clicked the reload
-  icon on the extension's card in `chrome://extensions` after your most
-  recent `pnpm run build`.
-- Check the claude.ai tab's own DevTools console (F12) for a line like
-  `[Claude Tools] content script loaded on https://claude.ai/...`. If
-  it's missing, the content script never ran on that page — re-check
-  the extension is loaded from `dist/` and enabled.
-
-**"Open claude.ai to use this tool"** — the active browser tab isn't a
-claude.ai page. Switch to your claude.ai tab and try again.
+---
 
 ## Organisations
 
-Signing in is entirely optional — personal buttons work with zero
-sign-in, forever. Clicking **"Sign in with your organisation"** in
-Settings unlocks a shared, org-managed prompt list on top of that:
+Signing in is optional; personal buttons never need it. Signing in adds a
+shared prompt list on top:
 
 - **First sign-in at a company domain creates the organisation** and
-  makes that person its admin. Signing in from anyone else at the
-  same domain afterward puts them in a "waiting for approval" state
-  until an admin approves them — personal buttons still work
-  normally while pending.
-- **Public email domains** (`gmail.com`, `outlook.com`, etc.) never
-  auto-join anyone — every sign-in there starts its own separate
-  organisation, since strangers sharing a mail provider aren't a
-  company.
-- **Admins** get a "Manage Organisation" view in Settings: approve or
-  remove members, add someone by email directly (no domain match
-  needed), promote/demote other admins, and create/edit/delete the
-  organisation's shared prompts — every member sees prompt changes
-  the next time they open the sidebar. An organisation can never drop
-  to zero admins; the last one can't be removed or demoted until a
-  second admin exists.
-- **Usage reporting:** while actively signed in to an organisation, an
-  approved member's session/weekly/spend usage percentages (the same
-  numbers shown by the personal usage widget on claude.ai) are
-  reported periodically so admins can see them in Manage
-  Organisation. Reporting stops immediately on sign-out.
+  makes that person its **admin**. Later sign-ins from the same domain
+  land in "waiting for approval" until an admin approves them.
+- **Public email domains** (`gmail.com`, `outlook.com`, …) never
+  auto-join — each such sign-in starts its own separate organisation.
+- **Admins** get **Manage Organisation** in Settings: approve/remove
+  members, add anyone by email, promote/demote admins, create/edit/delete
+  shared prompts and tabs, and see per-member usage and prompt-run
+  analytics. An organisation can never drop to zero admins.
+- **Usage reporting:** while signed in, an approved member's
+  session/weekly/spend percentages (the same numbers the personal usage
+  widget shows) are reported periodically for admins to see. Stops on
+  sign-out.
 
-All of this is enforced server-side, not just hidden in the UI — every
-admin-only action re-checks the caller's own membership row from their
-verified Google identity token on every request.
+Every admin-only action is enforced **server-side**: the backend
+re-derives the caller's email from their verified identity token and
+re-checks their own membership row on every request. The client cannot
+assert its own email, org, role, or admin status. Cross-organisation
+isolation is enforced by Postgres row-level security
+(`FORCE ROW LEVEL SECURITY`), not just by `WHERE` clauses.
+
+---
 
 ## Development
 
 ```bash
-pnpm install       # install dependencies (this project uses pnpm, not npm)
-pnpm run dev       # Vite dev build with watch mode
-pnpm run build     # type-check + production build to dist/
-pnpm test          # run the test suite (Vitest)
-pnpm run typecheck # tsc --noEmit only
+pnpm install
+pnpm run dev        # Vite dev build, watch mode
+pnpm run build      # tsc --noEmit + production build to dist/
+pnpm test           # Vitest (extension)
+pnpm run typecheck  # tsc --noEmit only
+
+cd backend && pnpm install && pnpm test && pnpm run typecheck
 ```
 
-Load `dist/` as described above; re-run `pnpm run build` (or keep
-`pnpm run dev` running) and reload the extension in `chrome://extensions`
-to see changes.
+`build.mjs` is a pnpm-free fallback (`node build.mjs`) for machines where
+the pnpm wrapper is broken; it runs the same `tsc` + `vite build`.
 
-## Architecture
+### Architecture
 
-- **`src/background/service-worker.ts`** — enables the side panel only
-  on claude.ai tabs and configures it to open on the toolbar icon click.
-- **`src/content/`** — the content script injected into claude.ai pages;
-  `claude-adapter.ts` finds the chat input and inserts text into it,
-  `content-script.ts` wires that up to messages from the sidebar.
-- **`src/sidepanel/`** — the sidebar UI (vanilla TypeScript + DOM, no
-  framework): the button list, the add/edit form, drag-and-drop reorder,
-  the settings panel, and the organisation views (`OrgOnboarding.ts` for
-  creating/joining an org, `ManageOrganisation.ts` for the admin roster
-  and prompt management).
-- **`src/shared/`** — code shared between the sidebar and content
-  script: the `Button`/`ButtonType` data model, the `StorageAdapter`
-  interface (implemented today by `chrome-local-adapter.ts` over
-  `chrome.storage.local`), `ToolService` (the CRUD layer the sidebar UI
-  calls), `backup.ts` (export/import JSON handling), and the
-  organisation client modules — `org-session.ts` (resolve/create/join),
-  `org-members.ts` (admin roster actions), `org-prompts.ts` (shared
-  prompts, including admin create/edit/delete), and `usage-report.ts`
-  (usage reporting).
-- **`backend/`** — a separate Vercel serverless API (Neon Postgres) that
-  backs the organisation features: verifies each request's Google
-  identity token, enforces row-level security per organisation, and
-  re-checks the caller's own membership row server-side for every
-  admin-only action rather than trusting anything the client sends. See
-  `backend/README.md` for setup, environment variables, and the API
-  surface.
-
-The storage layer sits behind the `StorageAdapter` interface
-specifically so a different backend (e.g. a synced account-based store)
-can be swapped in later without changing the UI or `ToolService`.
+- **`src/background/service-worker.ts`** — enables the side panel only on
+  claude.ai tabs.
+- **`src/content/`** — content script for claude.ai. `claude-adapter.ts`
+  finds the chat input and inserts text (never sends); `usage-widget.ts`
+  renders the usage rings; `content-script.ts` wires messages from the
+  sidebar and watches for an inserted prompt to actually be sent (for
+  analytics).
+- **`src/sidepanel/`** — the sidebar UI (vanilla TS + DOM). Button list,
+  add/edit form, drag-and-drop, tabs, settings, and the organisation
+  views. `render.ts` rebuilds the DOM per state; `main.ts` is the
+  controller.
+- **`src/shared/`** — shared model and services: `StorageAdapter` /
+  `ToolService` (button CRUD), `backup.ts` (export/import), `auth/`
+  (`AuthManager` over Google + Clerk adapters, backend session-token
+  exchange), and the `org-*` client modules.
+- **`backend/`** — Vercel serverless API over Neon Postgres. `lib/`
+  verifies tokens (`resolve-email`, `verify-clerk`, `jwt`) and resolves
+  the caller's org/role; `api/` is one file per route (kept under
+  Vercel's 12-function Hobby cap by consolidating related routes). See
+  `backend/README.md`.
 
 ## Testing
 
-Tests cover the storage, service, and backup layers (`tests/shared/`) —
-pure logic with no DOM dependency. The sidebar UI and content script are
-verified manually in a real Chrome browser rather than with DOM tests,
-which is a deliberate boundary for this project rather than a gap.
+`tests/` and `backend/lib/*.test.ts` cover the pure logic — storage,
+service, backup, token verification, org-state resolution, tab/reorder
+helpers. The sidebar UI and content script are verified manually in a
+real browser; that boundary is deliberate.

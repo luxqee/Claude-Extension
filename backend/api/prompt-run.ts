@@ -51,11 +51,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       return
     }
 
+    // Lowercase to match org_members (case-insensitive throughout) and so
+    // org-analytics' GROUP BY email can't split one person across two rows
+    // if a provider ever returns their address in a different case.
+    const memberEmail = email.toLowerCase()
+
     await sql.transaction([
       sql`SELECT set_config('app.current_org_id', ${orgId}, true)`,
       sql`
         INSERT INTO org_prompt_usage (org_id, prompt_id, email, run_count, last_used_at)
-        VALUES (${orgId}, ${promptId}, ${email}, 1, now())
+        VALUES (${orgId}, ${promptId}, ${memberEmail}, 1, now())
         ON CONFLICT (org_id, prompt_id, email)
         DO UPDATE SET run_count = org_prompt_usage.run_count + 1, last_used_at = now()
       `,

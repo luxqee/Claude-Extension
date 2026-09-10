@@ -40,7 +40,7 @@ const manifest: ExtensionManifest = {
     '48': 'src/icons/icon-48.png',
     '128': 'src/icons/icon-128.png',
   },
-  permissions: ['sidePanel', 'storage', 'scripting', 'identity'],
+  permissions: ['sidePanel', 'storage', 'identity'],
   host_permissions: [
     'https://claude.ai/*',
     'https://claude-extension-git-main-luxqees-projects.vercel.app/*',

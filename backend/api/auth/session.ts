@@ -73,7 +73,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return
   }
 
-  const body = req.body as { code?: unknown; redirectUri?: unknown; codeVerifier?: unknown }
+  // req.body is undefined when the request carries no JSON body -- which is
+  // exactly how the Google path calls this endpoint (Authorization header
+  // only). Without this guard `typeof body.code` throws and the whole
+  // function 500s (FUNCTION_INVOCATION_FAILED) instead of taking path A.
+  const body = (req.body ?? {}) as { code?: unknown; redirectUri?: unknown; codeVerifier?: unknown }
 
   // B. Clerk authorization-code exchange
   if (typeof body.code === 'string') {

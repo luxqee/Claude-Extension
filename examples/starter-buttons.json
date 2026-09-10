@@ -1,0 +1,42 @@
+[
+  {
+    "name": "Summarize",
+    "prompt": "Summarize the above in a few concise bullet points.",
+    "type": "prompt"
+  },
+  {
+    "name": "Explain simply",
+    "prompt": "Explain the above like I'm new to this topic, avoiding jargon.",
+    "type": "prompt"
+  },
+  {
+    "name": "Improve writing",
+    "prompt": "Rewrite the above to be clearer and more concise, keeping the same meaning.",
+    "type": "prompt"
+  },
+  {
+    "name": "Find bugs",
+    "prompt": "Review the code above for bugs, edge cases, and potential issues. Explain each one and suggest a fix.",
+    "type": "prompt"
+  },
+  {
+    "name": "Write tests",
+    "prompt": "Write unit tests covering the normal cases and edge cases for the code above.",
+    "type": "prompt"
+  },
+  {
+    "name": "Pros and cons",
+    "prompt": "List the pros and cons of the approach described above.",
+    "type": "prompt"
+  },
+  {
+    "name": "ELI5",
+    "prompt": "Explain the above like I'm five years old.",
+    "type": "prompt"
+  },
+  {
+    "name": "Example skill (edit me)",
+    "prompt": "/doc-summary",
+    "type": "skill"
+  }
+]
