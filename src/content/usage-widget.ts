@@ -274,7 +274,9 @@ export async function refreshWidget(): Promise<void> {
   if (existing) {
     existing.replaceWith(widget)
   } else {
-    anchor.insertAdjacentElement('afterend', widget)
+    // Place it above the Recents list rather than below it, so the meters
+    // sit near the top of claude.ai's sidebar instead of the bottom.
+    anchor.insertAdjacentElement('beforebegin', widget)
   }
 }
 
