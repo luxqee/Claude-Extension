@@ -145,3 +145,16 @@ describe('parseBackup - errors (nothing is written on bad input)', () => {
     expect(() => parseBackup(json)).toThrow('Tool 2 is missing a prompt.')
   })
 })
+
+describe('examples/showcase.json', () => {
+  it('is a valid v2 backup that imports cleanly', () => {
+    const { readFileSync } = require('node:fs')
+    const json = readFileSync(new URL('../../examples/showcase.json', import.meta.url), 'utf8')
+    const result = parseBackup(json)
+    expect(result.tools.length).toBeGreaterThan(15)
+    expect(result.tools.some((t) => t.type === 'skill')).toBe(true)
+    // every tool's tab exists in the tab list
+    const names = new Set(result.tabs.map((t) => t.name.toLowerCase()))
+    for (const tool of result.tools) expect(names.has(tool.tab.toLowerCase())).toBe(true)
+  })
+})

@@ -1,0 +1,132 @@
+{
+  "version": 2,
+  "tabs": [
+    { "name": "Writing", "emoji": "✍️" },
+    { "name": "Code", "emoji": "💻" },
+    { "name": "Research", "emoji": "🔍" },
+    { "name": "Meetings", "emoji": "📅" },
+    { "name": "Skills", "emoji": "⚡" }
+  ],
+  "tools": [
+    {
+      "tab": "Writing",
+      "name": "Summarize",
+      "type": "prompt",
+      "prompt": "Summarize the text above in 3-5 concise bullet points. Keep every number and name exact."
+    },
+    {
+      "tab": "Writing",
+      "name": "Tighten",
+      "type": "prompt",
+      "prompt": "Rewrite the text above to be clearer and about 30% shorter, same meaning and tone. Return only the rewrite."
+    },
+    {
+      "tab": "Writing",
+      "name": "Change tone: friendly",
+      "type": "prompt",
+      "prompt": "Rewrite the text above in a warm, plain-spoken tone. No jargon, no filler. Keep it the same length."
+    },
+    {
+      "tab": "Writing",
+      "name": "Reply draft",
+      "type": "prompt",
+      "prompt": "Draft a short reply to the message above. State the decision in the first sentence, then at most two sentences of reasoning."
+    },
+    {
+      "tab": "Writing",
+      "name": "Proofread only",
+      "type": "prompt",
+      "prompt": "Fix only spelling, grammar and punctuation in the text above. Do not change wording or structure. Return the corrected text."
+    },
+    {
+      "tab": "Code",
+      "name": "Review for bugs",
+      "type": "prompt",
+      "prompt": "Review the code above for bugs, edge cases and race conditions. For each: the failing input, what goes wrong, and the smallest fix."
+    },
+    {
+      "tab": "Code",
+      "name": "Explain this code",
+      "type": "prompt",
+      "prompt": "Explain what the code above does, step by step, then name one thing that would break it."
+    },
+    {
+      "tab": "Code",
+      "name": "Write tests",
+      "type": "prompt",
+      "prompt": "Write unit tests for the code above: the normal case, the boundary cases, and one failure case. Use the test framework already visible in this conversation."
+    },
+    {
+      "tab": "Code",
+      "name": "Add types / docstring",
+      "type": "prompt",
+      "prompt": "Add type annotations and a one-line docstring to the code above. Change nothing else. Return the whole function."
+    },
+    {
+      "tab": "Code",
+      "name": "Commit message",
+      "type": "prompt",
+      "prompt": "Write a Conventional Commits message for the diff above: a summary line under 72 chars, then a short body explaining why."
+    },
+    {
+      "tab": "Research",
+      "name": "Steelman + rebut",
+      "type": "prompt",
+      "prompt": "Give the strongest version of the argument above in 3 sentences, then the strongest rebuttal in 3 sentences."
+    },
+    {
+      "tab": "Research",
+      "name": "What am I missing?",
+      "type": "prompt",
+      "prompt": "Point out the assumptions, gaps and risks in the plan above that I haven't addressed. Rank them by how much they'd hurt if wrong."
+    },
+    {
+      "tab": "Research",
+      "name": "Compare options",
+      "type": "prompt",
+      "prompt": "Turn the options above into a comparison table: one row per option, columns for cost, effort, risk, and best-fit scenario."
+    },
+    {
+      "tab": "Research",
+      "name": "Ask @web",
+      "type": "prompt",
+      "prompt": "@web find the current, primary-source answer to the question above and cite each claim."
+    },
+    {
+      "tab": "Meetings",
+      "name": "Notes to action items",
+      "type": "prompt",
+      "prompt": "From the notes above, extract action items as: owner - task - due date. List open questions separately. Nothing else."
+    },
+    {
+      "tab": "Meetings",
+      "name": "Draft agenda",
+      "type": "prompt",
+      "prompt": "Turn the topics above into a 30-minute agenda: time-boxed items, each with a one-line goal and the decision it needs."
+    },
+    {
+      "tab": "Meetings",
+      "name": "Status update",
+      "type": "prompt",
+      "prompt": "Write a 4-line status update from the notes above: Done, In progress, Blocked, Next."
+    },
+    {
+      "tab": "Skills",
+      "name": "Doc summary skill",
+      "type": "skill",
+      "prompt": "/doc-summary"
+    },
+    {
+      "tab": "Skills",
+      "name": "Diagram skill",
+      "type": "skill",
+      "prompt": "/diagram"
+    },
+    {
+      "tab": "Skills",
+      "name": "Rewrite skill",
+      "type": "skill",
+      "prompt": "/rewrite concise"
+    }
+  ]
+}
