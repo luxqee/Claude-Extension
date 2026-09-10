@@ -1,15 +1,37 @@
-import type { Button, ButtonType } from '../shared/types'
+import type { Button, ButtonType, ToolTab } from '../shared/types'
 
 export interface EditFormContext {
-  onSave: (data: { id: string | null; name: string; prompt: string; type: ButtonType }) => void
+  onSave: (data: { id: string | null; name: string; prompt: string; type: ButtonType; tabId: string }) => void
   onCancel: () => void
 }
 
-export function renderEditForm(button: Button | null, context: EditFormContext): HTMLElement {
+export function renderEditForm(
+  button: Button | null,
+  tabs: ToolTab[],
+  activeTabId: string | null,
+  context: EditFormContext,
+): HTMLElement {
   const form = document.createElement('form')
   form.className = 'edit-form'
 
   const initialType: ButtonType = button?.type ?? 'prompt'
+  const initialTabId = button?.tabId ?? activeTabId ?? tabs[0]?.id ?? ''
+
+  let tabSelect: HTMLSelectElement | null = null
+  if (tabs.length > 1) {
+    const tabLabel = document.createElement('label')
+    tabLabel.textContent = 'Tab'
+    tabSelect = document.createElement('select')
+    tabs.forEach((tab) => {
+      const option = document.createElement('option')
+      option.value = tab.id
+      option.textContent = tab.emoji ? `${tab.emoji} ${tab.name}` : tab.name
+      option.selected = tab.id === initialTabId
+      tabSelect!.appendChild(option)
+    })
+    tabLabel.appendChild(tabSelect)
+    form.appendChild(tabLabel)
+  }
 
   const typeToggle = document.createElement('div')
   typeToggle.className = 'type-toggle'
@@ -90,6 +112,7 @@ export function renderEditForm(button: Button | null, context: EditFormContext):
       name: nameInput.value.trim(),
       prompt: promptInput.value.trim(),
       type: skillRadio.checked ? 'skill' : 'prompt',
+      tabId: tabSelect?.value || initialTabId,
     })
   })
 

@@ -509,6 +509,127 @@ body {
   background: var(--accent-solid-hover);
 }
 
+.tab-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.tab-strip-list {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
+}
+
+.tab-chip {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab-chip:hover {
+  background: var(--surface-hover);
+}
+
+.tab-chip.is-active {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+  font-weight: 600;
+}
+
+.tab-chip.dragging {
+  opacity: 0.5;
+}
+
+.tab-chip-add {
+  padding: 4px 10px;
+  color: var(--text-muted);
+}
+
+.tab-strip-manage {
+  align-self: flex-start;
+  font-size: 12px;
+}
+
+.tab-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tab-manager-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tab-manager-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.tab-manager-emoji {
+  width: 3em;
+  text-align: center;
+  font: inherit;
+  padding: 4px 6px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.tab-manager-name {
+  flex: 1;
+  min-width: 6em;
+  font: inherit;
+  padding: 4px 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.tab-manager-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.tab-manager-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.tab-manager-default {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

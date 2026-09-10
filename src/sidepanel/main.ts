@@ -9,9 +9,10 @@ import {
   type RunState,
   type SettingsState,
 } from './render'
-import type { Button } from '../shared/types'
+import type { Button, ToolTab } from '../shared/types'
 import type { InsertPromptRequest, InsertPromptResponse, GetUsageRequest, GetUsageResponse } from '../shared/messages'
 import { parseBackup, serializeBackup } from '../shared/backup'
+import { getTabPrefs, setActiveTab, setDefaultTab, resolveActiveTabId } from '../shared/tab-prefs'
 import {
   loadOrgPrompts,
   getCachedOrgPrompts,
@@ -45,6 +46,9 @@ if (!rootElement) {
 const root: HTMLElement = rootElement
 
 let view: View = { mode: 'list' }
+let tabs: ToolTab[] = []
+let activeTabId: string | null = null
+let defaultTabId: string | null = null
 let session: { email: string } | null = null
 let teamPrompts: OrgPromptsResult = { orgName: null, prompts: [] }
 let orgSession: OrgSessionState | null = null
@@ -185,9 +189,21 @@ function stopUsageReportTimer(): void {
 async function refresh(root: HTMLElement): Promise<void> {
   try {
     const buttons = await toolService.listButtons()
+    tabs = await toolService.listTabs()
+    const prefs = await getTabPrefs()
+    defaultTabId = prefs.defaultTabId
+    if (!activeTabId || !tabs.some((t) => t.id === activeTabId)) {
+      activeTabId = resolveActiveTabId(
+        tabs.map((t) => t.id),
+        prefs,
+      )
+    }
+    const visibleButtons =
+      activeTabId === null ? buttons : buttons.filter((b) => b.tabId === activeTabId)
     renderApp(
       root,
       buttons,
+      { tabs, activeTabId, defaultTabId },
       view,
       runState,
       settingsState,
@@ -278,7 +294,7 @@ async function refresh(root: HTMLElement): Promise<void> {
       onDrop: async (draggedId: string, targetId: string, position: 'before' | 'after') => {
         clearRunErrors()
         const ids = withMovedId(
-          buttons.map((b) => b.id),
+          visibleButtons.map((b) => b.id),
           draggedId,
           targetId,
           position,
@@ -293,7 +309,7 @@ async function refresh(root: HTMLElement): Promise<void> {
       },
       onArrowMove: async (id: string, direction: 'up' | 'down') => {
         const ids = withSwappedAdjacent(
-          buttons.map((b) => b.id),
+          visibleButtons.map((b) => b.id),
           id,
           direction,
         )
@@ -313,9 +329,14 @@ async function refresh(root: HTMLElement): Promise<void> {
         clearRunErrors()
         try {
           if (data.id) {
-            await toolService.updateButton(data.id, { name: data.name, prompt: data.prompt, type: data.type })
+            await toolService.updateButton(data.id, {
+              name: data.name,
+              prompt: data.prompt,
+              type: data.type,
+              tabId: data.tabId || undefined,
+            })
           } else {
-            await toolService.createButton(data.name, data.prompt, data.type)
+            await toolService.createButton(data.name, data.prompt, data.type, data.tabId || undefined)
           }
           view = { mode: 'list' }
           await refresh(root)
@@ -323,6 +344,90 @@ async function refresh(root: HTMLElement): Promise<void> {
           console.error('[Claude Tools] failed to save button', error)
           root.textContent = 'Something went wrong saving that tool. Check the console for details.'
         }
+      },
+      onSelectTab: async (tabId: string) => {
+        clearRunErrors()
+        activeTabId = tabId
+        await setActiveTab(tabId)
+        await refresh(root)
+      },
+      onAddTab: async () => {
+        clearRunErrors()
+        try {
+          const created = await toolService.createTab('New tab')
+          activeTabId = created.id
+          await setActiveTab(created.id)
+          view = { mode: 'tabs' }
+          await refresh(root)
+        } catch (error) {
+          console.error('[Claude Tools] failed to create tab', error)
+          root.textContent = 'Something went wrong creating that tab. Check the console for details.'
+        }
+      },
+      onManageTabs: () => {
+        clearRunErrors()
+        view = { mode: 'tabs' }
+        void refresh(root)
+      },
+      onTabsBack: () => {
+        view = { mode: 'list' }
+        void refresh(root)
+      },
+      onReorderTabs: async (orderedIds: string[]) => {
+        try {
+          await toolService.reorderTabs(orderedIds)
+          await refresh(root)
+        } catch (error) {
+          console.error('[Claude Tools] failed to reorder tabs', error)
+        }
+      },
+      onMoveTab: async (id: string, direction: 'up' | 'down') => {
+        const ids = tabs.map((t) => t.id)
+        const i = ids.indexOf(id)
+        const j = direction === 'up' ? i - 1 : i + 1
+        if (i === -1 || j < 0 || j >= ids.length) return
+        ;[ids[i], ids[j]] = [ids[j], ids[i]]
+        try {
+          await toolService.reorderTabs(ids)
+          await refresh(root)
+        } catch (error) {
+          console.error('[Claude Tools] failed to reorder tabs', error)
+        }
+      },
+      onRenameTab: async (id: string, name: string, emoji: string | null) => {
+        try {
+          await toolService.updateTab(id, { name, emoji })
+          await refresh(root)
+        } catch (error) {
+          console.error('[Claude Tools] failed to rename tab', error)
+        }
+      },
+      onDeleteTab: async (id: string) => {
+        const tab = tabs.find((t) => t.id === id)
+        if (!tab) return
+        const count = (await toolService.listButtons(id)).length
+        const message =
+          count === 0
+            ? `Delete the "${tab.name}" tab?`
+            : `Delete the "${tab.name}" tab and its ${count} tool${count === 1 ? '' : 's'}? This cannot be undone.`
+        if (!window.confirm(message)) return
+        try {
+          await toolService.deleteTab(id, null)
+          if (defaultTabId === id) await setDefaultTab(null)
+          if (activeTabId === id) {
+            activeTabId = null
+            await setActiveTab(null)
+          }
+          await refresh(root)
+        } catch (error) {
+          console.error('[Claude Tools] failed to delete tab', error)
+          root.textContent = 'Something went wrong deleting that tab. Check the console for details.'
+        }
+      },
+      onSetDefaultTab: async (id: string) => {
+        defaultTabId = id
+        await setDefaultTab(id)
+        await refresh(root)
       },
       onCancel: () => {
         clearRunErrors()

@@ -1,10 +1,12 @@
-import type { Button, ButtonType } from '../shared/types'
+import type { Button, ButtonType, ToolTab } from '../shared/types'
 import { renderButtonRow } from './ButtonRow'
 import { renderEditForm } from './EditForm'
 import { renderSettingsPanel } from './SettingsPanel'
 import { renderTeamSection } from './TeamSection'
 import { renderOrgOnboarding } from './OrgOnboarding'
 import { renderManageOrganisation, type ManageOrgState } from './ManageOrganisation'
+import { renderTabStrip } from './TabStrip'
+import { renderTabManager } from './TabManager'
 import type { OrgPrompt, OrgPromptsResult } from '../shared/org-prompts'
 import type { OrgSessionState } from '../shared/org-session'
 
@@ -14,6 +16,13 @@ export type View =
   | { mode: 'settings' }
   | { mode: 'org-onboarding' }
   | { mode: 'manage-org' }
+  | { mode: 'tabs' }
+
+export interface TabViewState {
+  tabs: ToolTab[]
+  activeTabId: string | null
+  defaultTabId: string | null
+}
 
 export interface RunState {
   isRunning: boolean
@@ -32,8 +41,17 @@ export interface RenderContext {
   onDrop: (draggedId: string, targetId: string, position: 'before' | 'after') => void
   onArrowMove: (id: string, direction: 'up' | 'down') => void
   onAddClick: () => void
-  onSave: (data: { id: string | null; name: string; prompt: string; type: ButtonType }) => void
+  onSave: (data: { id: string | null; name: string; prompt: string; type: ButtonType; tabId: string }) => void
   onCancel: () => void
+  onSelectTab: (tabId: string) => void
+  onAddTab: () => void
+  onManageTabs: () => void
+  onReorderTabs: (orderedIds: string[]) => void
+  onRenameTab: (id: string, name: string, emoji: string | null) => void
+  onMoveTab: (id: string, direction: 'up' | 'down') => void
+  onDeleteTab: (id: string) => void
+  onSetDefaultTab: (id: string) => void
+  onTabsBack: () => void
   onOpenSettings: () => void
   onExport: () => void
   onImport: (file: File) => void
@@ -82,6 +100,7 @@ export function withSwappedAdjacent(ids: string[], id: string, direction: 'up' |
 export function renderApp(
   root: HTMLElement,
   buttons: Button[],
+  tabState: TabViewState,
   view: View,
   runState: Map<string, RunState>,
   settingsState: SettingsState,
@@ -94,7 +113,32 @@ export function renderApp(
   root.innerHTML = ''
 
   if (view.mode === 'form') {
-    root.appendChild(renderEditForm(view.button, { onSave: context.onSave, onCancel: context.onCancel }))
+    root.appendChild(
+      renderEditForm(view.button, tabState.tabs, tabState.activeTabId, {
+        onSave: context.onSave,
+        onCancel: context.onCancel,
+      }),
+    )
+    return
+  }
+
+  if (view.mode === 'tabs') {
+    const buttonCountByTab: Record<string, number> = {}
+    for (const button of buttons) {
+      buttonCountByTab[button.tabId] = (buttonCountByTab[button.tabId] ?? 0) + 1
+    }
+    root.appendChild(
+      renderTabManager(tabState.tabs, {
+        defaultTabId: tabState.defaultTabId,
+        buttonCountByTab,
+        onRename: context.onRenameTab,
+        onReorder: context.onMoveTab,
+        onDelete: context.onDeleteTab,
+        onSetDefault: context.onSetDefaultTab,
+        onAdd: context.onAddTab,
+        onBack: context.onTabsBack,
+      }),
+    )
     return
   }
 
@@ -159,17 +203,35 @@ export function renderApp(
   header.appendChild(addButton)
   root.appendChild(header)
 
-  if (buttons.length === 0) {
-    const empty = document.createElement('p')
-    empty.className = 'empty-state'
-    empty.textContent = 'No tools yet. Click "Add tool" to create your first one.'
-    root.appendChild(empty)
-    return
+  if (tabState.tabs.length > 0) {
+    root.appendChild(
+      renderTabStrip(tabState.tabs, {
+        activeTabId: tabState.activeTabId,
+        onSelect: context.onSelectTab,
+        onAdd: context.onAddTab,
+        onManage: context.onManageTabs,
+        onReorder: context.onReorderTabs,
+      }),
+    )
   }
 
+  const visibleButtons =
+    tabState.activeTabId === null
+      ? buttons
+      : buttons.filter((button) => button.tabId === tabState.activeTabId)
+
+  if (visibleButtons.length === 0) {
+    const empty = document.createElement('p')
+    empty.className = 'empty-state'
+    empty.textContent =
+      tabState.tabs.length > 0
+        ? 'No tools in this tab yet. Click "Add tool" to create one.'
+        : 'No tools yet. Click "Add tool" to create your first one.'
+    root.appendChild(empty)
+  } else {
   const list = document.createElement('ul')
   list.className = 'button-list'
-  buttons.forEach((button) => {
+  visibleButtons.forEach((button) => {
     const state = runState.get(button.id) ?? { isRunning: false, error: null }
     list.appendChild(
       renderButtonRow(button, {
@@ -184,6 +246,7 @@ export function renderApp(
     )
   })
   root.appendChild(list)
+  }
 
   if (orgSession?.state === 'pending') {
     const banner = document.createElement('p')
