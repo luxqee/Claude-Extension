@@ -11,7 +11,7 @@ import {
 } from './render'
 import type { Button } from '../shared/types'
 import type { InsertPromptRequest, InsertPromptResponse, GetUsageRequest, GetUsageResponse } from '../shared/messages'
-import { parseImportedButtons, serializeButtons } from '../shared/backup'
+import { parseBackup, serializeBackup } from '../shared/backup'
 import {
   loadOrgPrompts,
   getCachedOrgPrompts,
@@ -336,9 +336,9 @@ async function refresh(root: HTMLElement): Promise<void> {
         view = { mode: 'settings' }
         void refresh(root)
       },
-      onExport: () => {
+      onExport: async () => {
         try {
-          const json = serializeButtons(buttons)
+          const json = serializeBackup(await toolService.listTabs(), buttons)
           const blob = new Blob([json], { type: 'application/json' })
           const url = URL.createObjectURL(blob)
           const link = document.createElement('a')
@@ -359,13 +359,17 @@ async function refresh(root: HTMLElement): Promise<void> {
       onImport: async (file: File) => {
         try {
           const text = await file.text()
-          const parsed = parseImportedButtons(text)
-          for (const { name, prompt, type } of parsed) {
-            await toolService.createButton(name, prompt, type)
+          const parsed = parseBackup(text)
+          for (const tab of parsed.tabs) {
+            await toolService.ensureTabByName(tab.name, tab.emoji)
+          }
+          for (const tool of parsed.tools) {
+            const tab = await toolService.ensureTabByName(tool.tab, null)
+            await toolService.createButton(tool.name, tool.prompt, tool.type, tab.id)
           }
           settingsState.error = null
-          settingsState.successCount = parsed.length
-          announce(`Imported ${parsed.length} tool${parsed.length === 1 ? '' : 's'}.`)
+          settingsState.successCount = parsed.tools.length
+          announce(`Imported ${parsed.tools.length} tool${parsed.tools.length === 1 ? '' : 's'}.`)
           await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] failed to import tools', error)

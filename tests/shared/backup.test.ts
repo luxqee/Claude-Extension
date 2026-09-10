@@ -1,105 +1,147 @@
 import { describe, expect, it } from 'vitest'
-import { parseImportedButtons, serializeButtons } from '../../src/shared/backup'
-import type { Button } from '../../src/shared/types'
+import { parseBackup, serializeBackup } from '../../src/shared/backup'
+import type { Button, ToolTab } from '../../src/shared/types'
 
-describe('serializeButtons', () => {
-  it('serializes buttons to a JSON array of name/prompt pairs, dropping id and order', () => {
+const GENERAL: ToolTab = { id: 't1', name: 'General', emoji: null, order: 0 }
+const MARKETING: ToolTab = { id: 't2', name: 'Marketing', emoji: '📣', order: 1 }
+
+describe('serializeBackup', () => {
+  it('writes a v2 payload with tabs and tools referenced by tab name', () => {
     const buttons: Button[] = [
-      { id: '1', name: 'Summarize', order: 0, prompt: 'Summarize this.', type: 'prompt' },
-      { id: '2', name: 'Translate', order: 1, prompt: 'Translate this.', type: 'prompt' },
+      { id: '1', tabId: 't1', name: 'Summarize', order: 0, prompt: 'Summarize this.', type: 'prompt' },
+      { id: '2', tabId: 't2', name: 'Ad Copy', order: 0, prompt: 'Write an ad.', type: 'skill' },
     ]
-    const json = serializeButtons(buttons)
-    expect(JSON.parse(json)).toEqual([
-      { name: 'Summarize', prompt: 'Summarize this.', type: 'prompt' },
-      { name: 'Translate', prompt: 'Translate this.', type: 'prompt' },
-    ])
+    expect(JSON.parse(serializeBackup([GENERAL, MARKETING], buttons))).toEqual({
+      version: 2,
+      tabs: [
+        { name: 'General', emoji: null },
+        { name: 'Marketing', emoji: '📣' },
+      ],
+      tools: [
+        { tab: 'General', name: 'Summarize', prompt: 'Summarize this.', type: 'prompt' },
+        { tab: 'Marketing', name: 'Ad Copy', prompt: 'Write an ad.', type: 'skill' },
+      ],
+    })
   })
 
-  it('serializes an empty list to an empty array', () => {
-    expect(JSON.parse(serializeButtons([]))).toEqual([])
+  it('falls back to "General" as the tab name for a button whose tab is not in the list', () => {
+    const buttons: Button[] = [
+      { id: '1', tabId: 'orphan', name: 'Lost', order: 0, prompt: 'x', type: 'prompt' },
+    ]
+    expect(JSON.parse(serializeBackup([GENERAL], buttons)).tools[0].tab).toBe('General')
   })
 
-  it('includes each button\'s type in the exported JSON', () => {
-    const buttons: Button[] = [
-      { id: '1', name: 'Summarize', order: 0, prompt: 'Summarize this.', type: 'prompt' },
-      { id: '2', name: 'Doc Summary', order: 1, prompt: '/doc-summary', type: 'skill' },
-    ]
-    const json = serializeButtons(buttons)
-    expect(JSON.parse(json)).toEqual([
-      { name: 'Summarize', prompt: 'Summarize this.', type: 'prompt' },
-      { name: 'Doc Summary', prompt: '/doc-summary', type: 'skill' },
-    ])
+  it('serializes an empty workspace', () => {
+    expect(JSON.parse(serializeBackup([], []))).toEqual({ version: 2, tabs: [], tools: [] })
   })
 })
 
-describe('parseImportedButtons', () => {
-  it('parses a valid array of name/prompt pairs', () => {
+describe('parseBackup - v1 (bare array, pre-tabs)', () => {
+  it('parses a bare array and puts every tool in a General tab', () => {
     const json = JSON.stringify([
       { name: 'Summarize', prompt: 'Summarize this.' },
-      { name: 'Translate', prompt: 'Translate this.' },
+      { name: 'Doc Summary', prompt: '/doc-summary', type: 'skill' },
     ])
-    expect(parseImportedButtons(json)).toEqual([
-      { name: 'Summarize', prompt: 'Summarize this.', type: 'prompt' },
-      { name: 'Translate', prompt: 'Translate this.', type: 'prompt' },
-    ])
+    expect(parseBackup(json)).toEqual({
+      tabs: [{ name: 'General', emoji: null }],
+      tools: [
+        { tab: 'General', name: 'Summarize', prompt: 'Summarize this.', type: 'prompt' },
+        { tab: 'General', name: 'Doc Summary', prompt: '/doc-summary', type: 'skill' },
+      ],
+    })
   })
 
   it('ignores extra fields like id or order on each entry', () => {
     const json = JSON.stringify([{ id: 'x', order: 5, name: 'Summarize', prompt: 'Summarize this.' }])
-    expect(parseImportedButtons(json)).toEqual([
-      { name: 'Summarize', prompt: 'Summarize this.', type: 'prompt' },
+    expect(parseBackup(json).tools).toEqual([
+      { tab: 'General', name: 'Summarize', prompt: 'Summarize this.', type: 'prompt' },
     ])
   })
 
-  it('returns an empty array for an empty JSON array', () => {
-    expect(parseImportedButtons('[]')).toEqual([])
+  it('parses an empty array', () => {
+    expect(parseBackup('[]')).toEqual({ tabs: [{ name: 'General', emoji: null }], tools: [] })
   })
 
-  it('throws a descriptive error for invalid JSON', () => {
-    expect(() => parseImportedButtons('not json')).toThrow("That file isn't valid JSON.")
-  })
-
-  it('throws a descriptive error when the top level is not an array', () => {
-    expect(() => parseImportedButtons('{"name":"x","prompt":"y"}')).toThrow(
-      'Expected a JSON array of tools.',
-    )
-  })
-
-  it('throws a descriptive error when an entry is not an object', () => {
-    expect(() => parseImportedButtons('["not an object"]')).toThrow("Tool 1 isn't a valid object.")
-  })
-
-  it('throws a descriptive error when an entry is missing a name', () => {
-    expect(() => parseImportedButtons(JSON.stringify([{ prompt: 'Summarize this.' }]))).toThrow(
-      'Tool 1 is missing a name.',
-    )
-  })
-
-  it('throws a descriptive error when an entry is missing a prompt', () => {
-    expect(() => parseImportedButtons(JSON.stringify([{ name: 'Summarize' }]))).toThrow(
-      'Tool 1 is missing a prompt.',
-    )
-  })
-
-  it('reports the correct 1-based index for the second entry', () => {
-    const json = JSON.stringify([{ name: 'Summarize', prompt: 'Summarize this.' }, { name: 'Bad' }])
-    expect(() => parseImportedButtons(json)).toThrow('Tool 2 is missing a prompt.')
-  })
-
-  it('preserves type: "skill" on import', () => {
-    const json = JSON.stringify([{ name: 'Doc Summary', prompt: '/doc-summary', type: 'skill' }])
-    expect(parseImportedButtons(json)).toEqual([{ name: 'Doc Summary', prompt: '/doc-summary', type: 'skill' }])
-  })
-
-  it('defaults a missing type to "prompt" on import', () => {
-    const json = JSON.stringify([{ name: 'Summarize', prompt: 'Summarize this.' }])
-    expect(parseImportedButtons(json)).toEqual([
-      { name: 'Summarize', prompt: 'Summarize this.', type: 'prompt' },
-    ])
-  })
-
-  it('defaults an unrecognized type value to "prompt" on import', () => {
+  it('defaults an unrecognized type to "prompt"', () => {
     const json = JSON.stringify([{ name: 'Weird', prompt: 'hi', type: 'bogus' }])
-    expect(parseImportedButtons(json)).toEqual([{ name: 'Weird', prompt: 'hi', type: 'prompt' }])
+    expect(parseBackup(json).tools[0].type).toBe('prompt')
+  })
+})
+
+describe('parseBackup - v2', () => {
+  it('round-trips a serialized v2 backup', () => {
+    const buttons: Button[] = [
+      { id: '1', tabId: 't1', name: 'Summarize', order: 0, prompt: 'Summarize this.', type: 'prompt' },
+      { id: '2', tabId: 't2', name: 'Ad Copy', order: 0, prompt: 'Write an ad.', type: 'skill' },
+    ]
+    const json = serializeBackup([GENERAL, MARKETING], buttons)
+    expect(parseBackup(json)).toEqual({
+      tabs: [
+        { name: 'General', emoji: null },
+        { name: 'Marketing', emoji: '📣' },
+      ],
+      tools: [
+        { tab: 'General', name: 'Summarize', prompt: 'Summarize this.', type: 'prompt' },
+        { tab: 'Marketing', name: 'Ad Copy', prompt: 'Write an ad.', type: 'skill' },
+      ],
+    })
+  })
+
+  it('adds a missing tab that a tool references', () => {
+    const json = JSON.stringify({
+      version: 2,
+      tabs: [{ name: 'General', emoji: null }],
+      tools: [{ tab: 'Research', name: 'Cite', prompt: 'cite it', type: 'prompt' }],
+    })
+    expect(parseBackup(json).tabs).toEqual([
+      { name: 'General', emoji: null },
+      { name: 'Research', emoji: null },
+    ])
+  })
+
+  it('defaults a tool with no tab field to General', () => {
+    const json = JSON.stringify({
+      version: 2,
+      tabs: [],
+      tools: [{ name: 'Loose', prompt: 'x', type: 'prompt' }],
+    })
+    const result = parseBackup(json)
+    expect(result.tools[0].tab).toBe('General')
+    expect(result.tabs).toEqual([{ name: 'General', emoji: null }])
+  })
+})
+
+describe('parseBackup - errors (nothing is written on bad input)', () => {
+  it('throws for invalid JSON', () => {
+    expect(() => parseBackup('not json')).toThrow("That file isn't valid JSON.")
+  })
+
+  it('throws for a non-array, non-object top level', () => {
+    expect(() => parseBackup('"a string"')).toThrow('Expected a tools array or a backup object.')
+  })
+
+  it('throws for an object without a recognized version', () => {
+    expect(() => parseBackup('{"tools":[]}')).toThrow('Unsupported backup version. Expected 2.')
+  })
+
+  it('throws when a v2 backup has no tools array', () => {
+    expect(() => parseBackup('{"version":2,"tabs":[]}')).toThrow('Backup is missing its "tools" array.')
+  })
+
+  it('throws when an entry is not an object', () => {
+    expect(() => parseBackup('["not an object"]')).toThrow("Tool 1 isn't a valid object.")
+  })
+
+  it('throws when an entry is missing a name', () => {
+    expect(() => parseBackup(JSON.stringify([{ prompt: 'x' }]))).toThrow('Tool 1 is missing a name.')
+  })
+
+  it('throws when an entry is missing a prompt', () => {
+    expect(() => parseBackup(JSON.stringify([{ name: 'X' }]))).toThrow('Tool 1 is missing a prompt.')
+  })
+
+  it('reports the correct 1-based index for a later bad entry', () => {
+    const json = JSON.stringify([{ name: 'ok', prompt: 'ok' }, { name: 'Bad' }])
+    expect(() => parseBackup(json)).toThrow('Tool 2 is missing a prompt.')
   })
 })
