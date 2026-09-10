@@ -217,20 +217,18 @@ h1, h2, h3 {
   flex-shrink: 0;
 }
 
-/* Glyph icons (⚙ ☰ ↑ ↓ ← / @ + ·) and text that carries them (emails,
-   hints) render from a symbol-complete system font -- the demo Alfabet
-   subset draws @, +, ", · etc as blanks. */
+/* The demo Alfabet subset is ASCII-only: it HAS @ + / . - _ and letters
+   and digits, but NOT arrows, ☰, ⚙, ↻ or the · middot. So these carry a
+   fallback AFTER Alfabet -- per-glyph, the browser uses Alfabet for
+   everything it can and only reaches the symbol font for the few marks
+   Alfabet lacks. Elements that only ever hold ASCII (emails, plain hints)
+   don't need to be listed here at all -- they inherit Alfabet from `*`. */
 .gi,
-.skill-badge,
 .drag-handle,
 .settings-button,
-.tab-chip-add,
 .roster-row-status,
-.roster-row-email,
-.settings-hint,
-.roster-add-form input,
-input[type='email'] {
-  font-family: "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols2", system-ui, -apple-system, "Segoe UI", sans-serif;
+.runs-chart-caption {
+  font-family: var(--font-sans), "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols2", sans-serif;
 }
 
 .team-section {
@@ -1123,18 +1121,6 @@ select {
   color: var(--text-primary);
 }
 
-.button-row-usage {
-  flex-shrink: 0;
-  min-width: 1.6em;
-  text-align: center;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
-  background: var(--surface-sunken);
-  border-radius: var(--radius-pill);
-  padding: 1px 6px;
-}
-
 .team-subheading {
   margin: 10px 0 6px;
   font-size: 11px;
@@ -1186,6 +1172,8 @@ select {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   overflow: hidden;
+  margin-bottom: 4px;
+  cursor: help;
 }
 
 .runs-chart-bar {
@@ -1195,6 +1183,16 @@ select {
   background: var(--accent);
   border-radius: 2px 2px 0 0;
   opacity: 0.85;
+}
+
+.runs-chart-bar:hover {
+  opacity: 1;
+}
+
+.runs-chart-caption {
+  margin: 0 0 12px;
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 /* Accent-outlined container -- AIRE border-2 border-primary card. */

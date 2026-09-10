@@ -4,8 +4,6 @@ import { badgeFor } from '../shared/badge'
 export interface ButtonRowContext {
   isRunning: boolean
   runError: string | null
-  /** Personal run count; 0 hides the badge. */
-  usageCount?: number
   /** When false, the drag handle is hidden and arrow-key reorder is off
    * (the list is in most-used order, so manual order is meaningless). */
   reorderable?: boolean
@@ -74,15 +72,6 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
   name.disabled = context.isRunning
   name.addEventListener('click', context.onRun)
   row.appendChild(name)
-
-  const usageCount = context.usageCount ?? 0
-  if (usageCount > 0) {
-    const used = document.createElement('span')
-    used.className = 'button-row-usage'
-    used.textContent = usageCount > 99 ? '99+' : String(usageCount)
-    used.title = `Run ${usageCount} time${usageCount === 1 ? '' : 's'}`
-    row.appendChild(used)
-  }
 
   const controls = document.createElement('div')
   controls.className = 'button-row-controls'

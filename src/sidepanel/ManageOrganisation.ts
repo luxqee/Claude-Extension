@@ -470,20 +470,44 @@ function renderAnalytics(state: ManageOrgState): DocumentFragment {
   tiles.appendChild(statTile(String(activeMembers), 'Active members'))
   panel.appendChild(tiles)
 
-  // Runs over time -- a simple CSS bar strip for the last 30 days.
+  // Runs over time -- a CSS bar strip for the last 30 days.
+  const runsHeading = document.createElement('p')
+  runsHeading.className = 'settings-hint'
+  runsHeading.textContent = 'Runs over time'
+  panel.appendChild(runsHeading)
+
   if (a.dailyRuns.length > 0) {
     const max = Math.max(...a.dailyRuns.map((d) => d.runCount), 1)
+    const recentTotal = a.dailyRuns.reduce((sum, d) => sum + d.runCount, 0)
+    const peak = a.dailyRuns.reduce((best, d) => (d.runCount > best.runCount ? d : best), a.dailyRuns[0])
+
     const chart = document.createElement('div')
     chart.className = 'runs-chart'
-    chart.setAttribute('aria-label', 'Prompt runs per day, last 30 days')
+    chart.setAttribute('role', 'img')
+    chart.setAttribute(
+      'aria-label',
+      `Prompt runs per day over the last 30 days. ${recentTotal} total, busiest day ${peak.day} with ${peak.runCount}.`,
+    )
+    // Hovering anywhere on the strip, not just a 3px bar, gives the summary.
+    chart.title = `${recentTotal} run${recentTotal === 1 ? '' : 's'} in the last 30 days (peak ${peak.runCount} on ${peak.day})`
     a.dailyRuns.forEach((d) => {
       const bar = document.createElement('span')
       bar.className = 'runs-chart-bar'
       bar.style.height = `${Math.max(4, Math.round((d.runCount / max) * 100))}%`
-      bar.title = `${d.day}: ${d.runCount}`
+      bar.title = `${d.day}: ${d.runCount} run${d.runCount === 1 ? '' : 's'}`
       chart.appendChild(bar)
     })
     panel.appendChild(chart)
+
+    const caption = document.createElement('p')
+    caption.className = 'runs-chart-caption'
+    caption.textContent = `${recentTotal} in the last 30 days · peak ${peak.runCount} on ${peak.day}`
+    panel.appendChild(caption)
+  } else {
+    const none = document.createElement('p')
+    none.className = 'settings-hint'
+    none.textContent = 'No runs in the last 30 days.'
+    panel.appendChild(none)
   }
 
   const topHeading = document.createElement('p')

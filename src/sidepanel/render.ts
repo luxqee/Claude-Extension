@@ -296,7 +296,6 @@ export function renderApp(
       renderButtonRow(button, {
         isRunning: state.isRunning,
         runError: state.error,
-        usageCount: tabState.buttonUsage[button.id]?.count ?? 0,
         reorderable: tabState.sortMode === 'manual',
         onRun: () => context.onRun(button),
         onEdit: () => context.onEdit(button),
