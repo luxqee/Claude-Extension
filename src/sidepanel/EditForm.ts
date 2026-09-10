@@ -1,4 +1,5 @@
 import type { Button, ButtonType, ToolTab } from '../shared/types'
+import { createDropdown } from './Dropdown'
 
 export interface EditFormContext {
   onSave: (data: { id: string | null; name: string; prompt: string; type: ButtonType; tabId: string }) => void
@@ -17,19 +18,23 @@ export function renderEditForm(
   const initialType: ButtonType = button?.type ?? 'prompt'
   const initialTabId = button?.tabId ?? activeTabId ?? tabs[0]?.id ?? ''
 
-  let tabSelect: HTMLSelectElement | null = null
+  let selectedTabId = initialTabId
   if (tabs.length > 1) {
     const tabLabel = document.createElement('label')
     tabLabel.textContent = 'Tab'
-    tabSelect = document.createElement('select')
-    tabs.forEach((tab) => {
-      const option = document.createElement('option')
-      option.value = tab.id
-      option.textContent = tab.emoji ? `${tab.emoji} ${tab.name}` : tab.name
-      option.selected = tab.id === initialTabId
-      tabSelect!.appendChild(option)
-    })
-    tabLabel.appendChild(tabSelect)
+    tabLabel.appendChild(
+      createDropdown({
+        ariaLabel: 'Tab',
+        value: initialTabId,
+        options: tabs.map((tab) => ({
+          value: tab.id,
+          label: tab.emoji ? `${tab.emoji} ${tab.name}` : tab.name,
+        })),
+        onChange: (value) => {
+          selectedTabId = value
+        },
+      }),
+    )
     form.appendChild(tabLabel)
   }
 
@@ -112,7 +117,7 @@ export function renderEditForm(
       name: nameInput.value.trim(),
       prompt: promptInput.value.trim(),
       type: skillRadio.checked ? 'skill' : 'prompt',
-      tabId: tabSelect?.value || initialTabId,
+      tabId: selectedTabId,
     })
   })
 

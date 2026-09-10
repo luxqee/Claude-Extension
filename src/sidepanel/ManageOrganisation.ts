@@ -3,6 +3,7 @@ import type { OrgPrompt, OrgTab } from '../shared/org-prompts'
 import type { OrgUsageSnapshot } from '../shared/usage-report'
 import type { OrgAnalytics } from '../shared/org-analytics'
 import { joinTabLabel, splitTabLabel } from '../shared/tab-label'
+import { createDropdown } from './Dropdown'
 
 export interface ManageOrgState {
   loading: boolean
@@ -321,20 +322,23 @@ function renderPrompts(state: ManageOrgState, context: ManageOrganisationContext
   typeToggle.appendChild(skillOpt)
   form.appendChild(typeToggle)
 
-  let tabSelect: HTMLSelectElement | null = null
+  let selectedTabId = editingPrompt?.tabId ?? state.orgTabs[0]?.id ?? ''
   if (state.orgTabs.length > 0) {
     const tabLabel = document.createElement('label')
     tabLabel.textContent = 'Tab'
-    tabSelect = document.createElement('select')
-    const initialTab = editingPrompt?.tabId ?? state.orgTabs[0].id
-    state.orgTabs.forEach((tab) => {
-      const option = document.createElement('option')
-      option.value = tab.id
-      option.textContent = tab.emoji ? `${tab.emoji} ${tab.name}` : tab.name
-      option.selected = tab.id === initialTab
-      tabSelect!.appendChild(option)
-    })
-    tabLabel.appendChild(tabSelect)
+    tabLabel.appendChild(
+      createDropdown({
+        ariaLabel: 'Tab',
+        value: selectedTabId,
+        options: state.orgTabs.map((tab) => ({
+          value: tab.id,
+          label: tab.emoji ? `${tab.emoji} ${tab.name}` : tab.name,
+        })),
+        onChange: (value) => {
+          selectedTabId = value
+        },
+      }),
+    )
     form.appendChild(tabLabel)
   }
 
@@ -377,7 +381,7 @@ function renderPrompts(state: ManageOrgState, context: ManageOrganisationContext
     const promptText = textInput.value.trim()
     if (!name || !promptText) return
     const type: 'prompt' | 'skill' = skillRadio.checked ? 'skill' : 'prompt'
-    const tabId = tabSelect?.value ?? state.orgTabs[0]?.id ?? ''
+    const tabId = selectedTabId || state.orgTabs[0]?.id || ''
     if (state.editingPromptId) {
       context.onUpdatePrompt(state.editingPromptId, { name, promptText, type, tabId })
     } else {
