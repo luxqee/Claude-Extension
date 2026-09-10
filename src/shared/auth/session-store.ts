@@ -1,4 +1,3 @@
-import { API_BASE_URL } from '../api-base'
 import type { ProviderId } from './providers'
 
 const SESSION_STORAGE_KEY = 'authSession'
@@ -6,13 +5,12 @@ const SESSION_STORAGE_KEY = 'authSession'
 const SESSION_EXPIRY_SKEW_SECONDS = 5 * 60
 
 export interface StoredSession {
-  /** Which sign-in method produced this session. Absent on sessions
-   * written by builds before multi-provider support -- treat as google. */
+  /** Which sign-in method produced this session. Only 'clerk' today; the
+   * field is kept so an older stored session still parses. */
   provider?: ProviderId
   email: string
-  /** The provider's most recent id_token (Google or Clerk). Kept so a
-   * backend session token can be re-minted without a fresh interactive
-   * sign-in, and as a fallback the backend still accepts directly. */
+  /** The backend session token, also stored here so getValidToken's
+   * fallback paths have a single field to read. */
   idToken: string
   /** Backend-issued session JWT used for API calls once obtained. */
   sessionToken?: string
@@ -43,47 +41,6 @@ export interface SessionExchangeResult {
   email: string
   /** seconds since epoch */
   expiresAt: number
-}
-
-/**
- * Trades a provider id_token for a backend session token via
- * `POST /api/auth/session`. Works for any provider the backend can
- * verify (Google, Clerk). Returns null on any failure -- callers fall
- * back to sending the id_token directly.
- */
-export async function exchangeIdTokenForSession(idToken: string): Promise<SessionExchangeResult | null> {
-  let response: Response
-  try {
-    response = await fetch(`${API_BASE_URL}/api/auth/session`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
-      body: '{}',
-    })
-  } catch (error) {
-    console.error('[Claude Tools] session-token exchange request failed', error)
-    return null
-  }
-  if (!response.ok) {
-    console.error('[Claude Tools] session-token exchange returned status', response.status)
-    return null
-  }
-  let body: { sessionToken?: unknown; email?: unknown; expiresAt?: unknown }
-  try {
-    body = await response.json()
-  } catch (error) {
-    console.error('[Claude Tools] session-token exchange response was not JSON', error)
-    return null
-  }
-  if (
-    typeof body.sessionToken !== 'string' ||
-    typeof body.email !== 'string' ||
-    typeof body.expiresAt !== 'string'
-  ) {
-    return null
-  }
-  const expiresAt = Math.floor(new Date(body.expiresAt).getTime() / 1000)
-  if (!Number.isFinite(expiresAt)) return null
-  return { sessionToken: body.sessionToken, email: body.email, expiresAt }
 }
 
 /** Decodes a JWT payload without verifying (display only). */

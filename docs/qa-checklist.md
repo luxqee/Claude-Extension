@@ -50,7 +50,7 @@ open a fresh claude.ai tab.
 
 ## 5. Organisation sign-in
 
-- [ ] Settings → sign in (Google, and Clerk if enabled).
+- [ ] Settings → **Sign in** → Clerk hosted page → pick a method (Google / GitHub / email / …).
 - [ ] "Signing in…" spinner shows during the flow.
 - [ ] After sign-in: "Checking organisation…" then the correct state.
 - [ ] First sign-in at a **company domain** → onboarding screen → create org → you are admin.
@@ -96,4 +96,4 @@ open a fresh claude.ai tab.
 
 - [ ] Run a button with the claude.ai tab on a non-chat page → "reload the tab" message, no crash.
 - [ ] Go offline, open the panel → personal buttons work; org section falls back to cache, no crash.
-- [ ] Let a Google session token pass 1 hour → next org action silently refreshes or prompts re-sign-in (no stuck spinner).
+- [ ] Let the 14-day backend session token near expiry → next org action silently refreshes or prompts re-sign-in (no stuck spinner).

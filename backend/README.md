@@ -11,59 +11,46 @@ directory.
 Set these in the Vercel project's Settings -> Environment Variables:
 
 - `DATABASE_URL` -- a Neon Postgres connection string.
-- `GOOGLE_OAUTH_CLIENT_ID` -- the OAuth Client ID created in Google Cloud
-  Console for this extension. Must be the **same** client ID the extension
-  itself uses in `src/shared/auth/google-auth-adapter.ts`, since the
-  backend verifies each id_token with this value as the expected audience.
 - `SESSION_JWT_SECRET` -- a long random string (e.g. `openssl rand -hex 32`).
   Used to sign and verify the backend session tokens the extension gets
   from `POST /api/auth/session` and then sends on every other call. Keep
   it secret; it never ships in the extension. If it is unset the API
-  still works -- it just falls back to verifying a provider id_token on
+  still works -- it just falls back to verifying a Clerk id_token on
   every request, the pre-session-token behaviour.
-- `CLERK_ISSUER` -- optional. The Clerk instance's Frontend API origin,
-  e.g. `https://innocent-lamb-6401.clerk.accounts.dev` (dev) or your
-  custom domain (prod). When set, the backend also accepts Clerk
-  id_tokens, verified against `${CLERK_ISSUER}/.well-known/jwks.json`.
-  Leave unset to keep Google as the only sign-in.
+- `CLERK_ISSUER` -- the Clerk instance's Frontend API origin, e.g.
+  `https://innocent-lamb-6401.clerk.accounts.dev` (dev) or your custom
+  domain (prod). Same value as `CLERK_DOMAIN` in `providers.ts` with the
+  `https://` prefix. Clerk id_tokens are verified against
+  `${CLERK_ISSUER}/.well-known/jwks.json`.
+- `CLERK_OAUTH_CLIENT_ID` -- from the Clerk OAuth application (below).
+- `CLERK_OAUTH_CLIENT_SECRET` -- only if that application is confidential
+  rather than a public/PKCE client.
 
-### Clerk sign-in (optional, multi-method)
+### Clerk sign-in setup
 
-To offer SSO / Microsoft / email / etc alongside Google:
+Sign-in goes entirely through Clerk. One OAuth application fans out to
+Google / GitHub / Microsoft / email / SSO -- whichever connections are
+enabled in the dashboard.
 
 1. In the Clerk Dashboard: **Configure -> OAuth Applications -> New
-   application**. Scopes: `openid`, `email`, `profile`. Add the redirect
-   URI `https://fhaeedmmhjjkhnopifppigddjbbmdegh.chromiumapp.org/`. It is
-   a **public** client (PKCE) -- no client secret is used by the
-   extension.
+   application**. Scopes: `openid`, `email`, `profile`. Redirect URI
+   `https://fhaeedmmhjjkhnopifppigddjbbmdegh.chromiumapp.org/`. Public
+   client (PKCE) -- no client secret needed by the extension.
 2. Copy the **Client ID** into `CLERK_OAUTH_CLIENT_ID` in
-   `src/shared/auth/providers.ts` (and confirm `CLERK_DOMAIN` there
-   matches your instance). The Clerk button appears in the extension once
-   both are filled.
-3. Set `CLERK_ISSUER` in Vercel (same value as `CLERK_DOMAIN`, with the
-   `https://` prefix) and redeploy.
+   `src/shared/auth/providers.ts` and confirm `CLERK_DOMAIN` there
+   matches your instance.
+3. Set `CLERK_ISSUER` (and `CLERK_OAUTH_CLIENT_SECRET` if the app is
+   confidential) in Vercel and redeploy.
 4. Add the Clerk instance host to `host_permissions` in
    `manifest.config.ts` if your instance domain differs from the default.
+5. Turn on the sign-in methods you want under **Social Connections** and
+   **SSO Connections**. Clerk's dev instance (`*.clerk.accounts.dev`) has
+   no allow-list -- any tester can sign in with an enabled method, no
+   per-tester step.
 
-### Google OAuth consent screen
-
-Multi-machine sign-in does **not** need per-device configuration: the
-extension ID is pinned (`key` in `manifest.config.ts`), so every build of
-this repo has the same ID and the same single redirect URI
-`https://fhaeedmmhjjkhnopifppigddjbbmdegh.chromiumapp.org/`, registered
-once in the OAuth client.
-
-What does gate a group of testers is the consent screen's **publishing
-status** (Google Cloud Console -> APIs & Services -> OAuth consent
-screen):
-
-- **Testing** -- only emails listed under *Test users* can sign in at all;
-  everyone else gets `access_denied`, and issued grants expire after ~7
-  days. Fine for a handful of known testers if you add each one.
-- **In production** -- anyone with a Google account can sign in. The
-  scopes in use (`openid`, `email`) are non-sensitive, so **Publish app**
-  takes effect immediately with no Google review. Recommended for a
-  tester group of any real size.
+The extension ID is pinned (`key` in `manifest.config.ts`), so every
+build of this repo has the same ID and the redirect URI above is
+registered **once, ever** -- not per machine.
 
 ## Database setup
 
@@ -144,16 +131,15 @@ Either:
 ## API
 
 Every endpoint's `Authorization: Bearer <token>` accepts **either** a
-Google id_token (straight from the extension's sign-in) **or** a backend
-session token from `POST /api/auth/session`. The extension exchanges once
-after sign-in and then sends the session token.
+Clerk id_token **or** a backend session token from `POST /api/auth/session`.
+The extension exchanges once after sign-in and then sends the session token.
 
 ```
 POST /api/auth/session
-Authorization: Bearer <google-id-token>
+Authorization: Bearer <token>
 
 200 -> { "sessionToken": "<jwt>", "email": "a@b.com", "expiresAt": "<ISO-8601>" }
-401 -> Google id_token missing or invalid
+401 -> token missing or invalid
 500 -> SESSION_JWT_SECRET not configured on the server
 ```
 
@@ -162,7 +148,7 @@ further down.)
 
 ```
 POST /api/org-session
-Authorization: Bearer <google-id-token>
+Authorization: Bearer <token>
 
 200 -> { "state": "active", "org": { "id": "...", "name": "..." }, "role": "director" | "member" }
 200 -> { "state": "pending", "org": { "id": "...", "name": "..." } }
@@ -172,7 +158,7 @@ Authorization: Bearer <google-id-token>
 
 ```
 POST /api/org-onboarding
-Authorization: Bearer <google-id-token>
+Authorization: Bearer <token>
 Body: { "orgName": "...", "initialMemberEmails": ["...", "..."] }
 
 200 -> { "outcome": "created", "org": { "id": "...", "name": "..." }, "role": "director" }
@@ -222,12 +208,12 @@ GET  /api/org-analytics                                                  (direct
 
 ```
 POST /api/usage-report
-Authorization: Bearer <google-id-token>
+Authorization: Bearer <token>
 Body: { "sessionPercent": number | null, "weeklyPercent": number | null, "spendPercent": number | null }
 204 -> accepted
 403 -> caller is not an active organization member
 
 GET /api/org-usage   (director-only)
-Authorization: Bearer <google-id-token>
+Authorization: Bearer <token>
 200 -> { "snapshots": [ { "email", "sessionPercent", "weeklyPercent", "spendPercent", "updatedAt" } ] }
 ```

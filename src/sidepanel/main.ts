@@ -1,6 +1,6 @@
 import { ToolService } from '../shared/tool-service'
 import { ChromeLocalStorageAdapter } from '../shared/storage/chrome-local-adapter'
-import { AuthManager } from '../shared/auth/auth-manager'
+import { ClerkAuthAdapter } from '../shared/auth/clerk-auth-adapter'
 import type { ProviderId } from '../shared/auth/providers'
 import {
   renderApp,
@@ -53,7 +53,7 @@ import type { ManageOrgState } from './ManageOrganisation'
 import { reportUsage, fetchOrgUsage, type OrgUsageSnapshot } from '../shared/usage-report'
 
 const toolService = new ToolService(new ChromeLocalStorageAdapter())
-const authAdapter = new AuthManager()
+const authAdapter = new ClerkAuthAdapter()
 const rootElement = document.getElementById('app')
 
 if (!rootElement) {
@@ -617,7 +617,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         await refresh(root)
         let result: { email: string } | null = null
         try {
-          result = await authAdapter.signIn(providerId)
+          result = await authAdapter.signIn()
         } finally {
           settingsState.signingIn = false
         }
