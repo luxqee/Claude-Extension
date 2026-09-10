@@ -1,5 +1,14 @@
 import type { Button, ButtonType, ToolTab } from '../shared/types'
 import type { ButtonUsageMap } from '../shared/prompt-usage'
+
+// AIRE wordmark (getaiready.now). Inherits currentColor for theming.
+const AIRE_LOGO_SVG =
+  '<svg viewBox="0 0 856 223" height="22" fill="currentColor" role="img" aria-label="AIRE">' +
+  '<path transform="translate(0.244 -1.886) scale(2.1244)" d="M41.7,2.3h25.4c1.3,0,2.4.8,2.9,2.1l34.8,95.8c.8,2.2-.7,4.5-2.9,4.5h-22.9c-1.3,0-2.5-.9-2.9-2.2l-4-11.7c-.4-1.3-1.6-2.2-2.9-2.2h-30.9c-1.3,0-2.5.9-2.9,2.2l-3.9,11.7c-.4,1.3-1.6,2.2-2.9,2.2H6.3c-2.2,0-3.7-2.3-2.9-4.5L38.8,4.4c.5-1.3,1.6-2.1,2.9-2.1h0ZM65,69c.8,0,1.4-.8,1.1-1.6l-10.8-30.9c-.4-1.1-1.9-1.1-2.2,0l-10.8,30.9c-.3.8.3,1.5,1.1,1.5h21.8,0Z"></path>' +
+  '<path d="M279.41,13.91Q280.81,3 291.81,3L341.39,3Q352.39,3 350.99,13.91L325.99,209.09Q324.59,220 313.59,220L264.01,220Q253.01,220 254.41,209.09Z"></path>' +
+  '<path transform="translate(375.414 -255.964) scale(2.1244)" d="M3.2,125.2c0-1.8,1.4-3.3,3.1-3.3h58.2c19.9,0,40.6,5.1,40.6,26.9v7.3c0,12.4-7.2,19.6-19.9,21.1v1.5c11.2,1.4,18.3,6.5,18.3,18.9v7.3c0,3.6,0,9.1.9,14.9.3,2.1-1.1,4-3,4h-25.8c-1.7,0-3.1-1.5-3.1-3.3v-18.5c0-7.3-3.2-10.2-11.1-10.2h-26.9c-1.7,0-3.1,1.5-3.1,3.3v25.3c0,1.9-1.4,3.3-3.1,3.3H6.2c-1.7,0-3.1-1.5-3.1-3.3v-95.2h0ZM62.8,166.9c6.4,0,9.5-2.9,9.5-8.1v-4.2c0-5.1-3.2-8-9.5-8h-28.5c-1.7,0-3.1,1.5-3.1,3.3v13.7c0,1.9,1.4,3.3,3.1,3.3h28.5Z"></path>' +
+  '<path transform="translate(373.398 -255.752) scale(2.1244)" d="M126.5,121.8h92.3c2.4,0,4.3,1.6,4.3,3.5v17.8c0,1.9-1.9,3.5-4.3,3.5h-61.5v14.6h57.9c2.4,0,4.3,1.6,4.3,3.5v15.6c0,1.9-1.9,3.5-4.3,3.5h-57.9v15.3h62.4c2.4,0,4.3,1.6,4.3,3.5v17.8c0,1.9-1.9,3.5-4.3,3.5h-93.2c-2.4,0-4.3-1.6-4.3-3.5v-94.9c0-1.9,1.9-3.5,4.3-3.5h0Z"></path>' +
+  '</svg>'
 import { renderButtonRow } from './ButtonRow'
 import { renderEditForm } from './EditForm'
 import { renderSettingsPanel } from './SettingsPanel'
@@ -208,7 +217,7 @@ export function renderApp(
 
   const wordmark = document.createElement('span')
   wordmark.className = 'wordmark'
-  wordmark.textContent = 'Claude Tools'
+  wordmark.innerHTML = AIRE_LOGO_SVG
   header.appendChild(wordmark)
 
   const headerActions = document.createElement('div')
