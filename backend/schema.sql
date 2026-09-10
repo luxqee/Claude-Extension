@@ -1,34 +1,21 @@
--- Run this once against your Neon database:
+-- Run this against your Neon database:
 --   psql "$DATABASE_URL" -f backend/schema.sql
 -- or paste its contents into Neon's SQL Editor
 -- (console.neon.tech -> your project -> SQL Editor).
 --
--- If you already ran an earlier version of this file (Phase 2C or
--- earlier), run this instead to migrate in place rather than starting
--- over:
---   alter table organizations drop constraint organizations_domain_key;
--- then paste in everything from the `create policy org_update on prompts`
--- line onward. Start there, NOT at `create table org_members`: prompts is
--- under FORCE ROW LEVEL SECURITY and RLS default-denies any command that
--- has no matching policy, so skipping the org_update/org_delete policies
--- would make every director prompt edit and delete match zero rows and
--- silently do nothing.
+-- The whole file is idempotent -- every `create table` is `if not exists`
+-- and every policy is dropped-then-created -- so pasting it into a
+-- database that already has some or all of these objects is safe and is
+-- the intended way to pick up newly added tables (e.g. `rate_limits`).
 --
--- If you already applied an earlier version of this file with the old
--- org_members_isolation SELECT policy (org_id-scoped), fix it in place:
---   drop policy org_members_isolation on org_members;
---   create policy org_members_isolation on org_members for select using (true);
---
--- If you already applied an earlier version of this file with the old
--- case-sensitive `unique (org_id, email)` constraint on org_members,
--- replace it with the case-insensitive index below (see the comment on
--- that index for why). If two rows in an org differ only by email case,
--- delete the redundant one before running the update:
+-- Migrating from the pre-Phase-2C schema (unique constraint on
+-- organizations.domain, or a case-sensitive org_members unique):
+--   alter table organizations drop constraint if exists organizations_domain_key;
+--   alter table org_members drop constraint if exists org_members_org_id_email_key;
 --   update org_members set email = lower(email) where email <> lower(email);
---   alter table org_members drop constraint org_members_org_id_email_key;
---   create unique index org_members_org_email_key on org_members (org_id, lower(email));
+-- then run this file.
 
-create table organizations (
+create table if not exists organizations (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   domain text not null
@@ -39,7 +26,7 @@ create table organizations (
   -- application layer instead (see Task 2).
 );
 
-create table prompts (
+create table if not exists prompts (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id),
   name text not null,
@@ -51,6 +38,7 @@ create table prompts (
 alter table prompts enable row level security;
 alter table prompts force row level security;
 
+drop policy if exists org_isolation on prompts;
 create policy org_isolation on prompts
   for select
   using (org_id = current_setting('app.current_org_id', true)::uuid);
@@ -63,19 +51,22 @@ create policy org_isolation on prompts
 -- director of the target org_id before ever running one -- the same
 -- defense-in-depth split as the org_members/usage_snapshots policies
 -- below (RLS proves org isolation; the API proves authorization).
+drop policy if exists org_insert on prompts;
 create policy org_insert on prompts
   for insert
   with check (true);
 
+drop policy if exists org_update on prompts;
 create policy org_update on prompts
   for update
   using (org_id = current_setting('app.current_org_id', true)::uuid);
 
+drop policy if exists org_delete on prompts;
 create policy org_delete on prompts
   for delete
   using (org_id = current_setting('app.current_org_id', true)::uuid);
 
-create table org_members (
+create table if not exists org_members (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id),
   email text not null,
@@ -95,7 +86,7 @@ create table org_members (
 -- could silently supersede -- and effectively demote -- the real one.
 -- ON CONFLICT clauses against this table must name the expression form
 -- (`on conflict (org_id, lower(email))`) so the inference matches this index.
-create unique index org_members_org_email_key on org_members (org_id, lower(email));
+create unique index if not exists org_members_org_email_key on org_members (org_id, lower(email));
 
 alter table org_members enable row level security;
 alter table org_members force row level security;
@@ -103,7 +94,7 @@ alter table org_members force row level security;
 -- Deliberately unconditional, matching org_members_insert below and this
 -- project's established reasoning for prompts' own insert policy: RLS has
 -- no way to verify which end-user identity a query is acting on -- only
--- the API layer can, via a verified Google ID token, and every read of
+-- the API layer can, via a verified identity token, and every read of
 -- this table already derives its own authorization from that (a caller's
 -- own verified email for self-lookups, or an already-authorized org_id
 -- for roster listings). An org_id-scoped SELECT policy here is not just
@@ -113,23 +104,27 @@ alter table org_members force row level security;
 -- entire point of the query. A scoped policy makes every such lookup
 -- return zero rows unconditionally, since the session variable it
 -- requires can never be set before the org_id it would need is known.
+drop policy if exists org_members_isolation on org_members;
 create policy org_members_isolation on org_members
   for select
   using (true);
 
+drop policy if exists org_members_insert on org_members;
 create policy org_members_insert on org_members
   for insert
   with check (true);
 
+drop policy if exists org_members_update on org_members;
 create policy org_members_update on org_members
   for update
   using (org_id = current_setting('app.current_org_id', true)::uuid);
 
+drop policy if exists org_members_delete on org_members;
 create policy org_members_delete on org_members
   for delete
   using (org_id = current_setting('app.current_org_id', true)::uuid);
 
-create table usage_snapshots (
+create table if not exists usage_snapshots (
   org_id uuid not null references organizations(id),
   email text not null,
   session_percent integer,
@@ -142,14 +137,17 @@ create table usage_snapshots (
 alter table usage_snapshots enable row level security;
 alter table usage_snapshots force row level security;
 
+drop policy if exists usage_snapshots_isolation on usage_snapshots;
 create policy usage_snapshots_isolation on usage_snapshots
   for select
   using (org_id = current_setting('app.current_org_id', true)::uuid);
 
+drop policy if exists usage_snapshots_insert on usage_snapshots;
 create policy usage_snapshots_insert on usage_snapshots
   for insert
   with check (true);
 
+drop policy if exists usage_snapshots_update on usage_snapshots;
 create policy usage_snapshots_update on usage_snapshots
   for update
   using (org_id = current_setting('app.current_org_id', true)::uuid);
