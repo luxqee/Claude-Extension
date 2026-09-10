@@ -11,6 +11,7 @@ interface ExtensionManifest {
    * Cloud Console against a specific extension ID) would need re-adding
    * every time the extension is loaded fresh on a different computer. */
   key: string
+  icons: Record<string, string>
   permissions: string[]
   host_permissions: string[]
   background: {
@@ -24,15 +25,21 @@ interface ExtensionManifest {
   side_panel: {
     default_path: string
   }
-  action: Record<string, never>
+  action: { default_icon: Record<string, string> }
 }
 
 const manifest: ExtensionManifest = {
   manifest_version: 3,
-  name: 'Claude Tools Sidebar',
+  name: 'AIRE Extension',
   version: '0.1.0',
-  description: 'Configurable prompt buttons for claude.ai, run from a sidebar.',
+  description: 'Configurable prompt and skill buttons for claude.ai, run from a sidebar.',
   key: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5XVB/dXgxQE8jwyqw4Rpvz/OscKGE/KeOplSBusI8gn+2mqrdh9Pq0i+HIop95bsz/KbMml+uCvgJMLVgstHlO3TxGc1E5T5u13kL/g0CoZDd5khfx2SSJVAwSWoNs3ttZT72xJ3p6TgeJbj4++b1ECTEmU41DxEvChJcdsGk91La7wZg+9Flaqv0Eh2J/qCj/1eGcmLIBNv9BfuLRw1L3MGZSN/jJFEAnSFnIcKGtdz86/EexjTcctx4RTQf7b1LQeaaz93qjZ7mCzDBC7XfHnzkJI38qaScfSd6StGRiiaE1FoWxpVMrDRLSqte7V72Eio/TiaRNHp31kcnQ4l1wIDAQAB',
+  icons: {
+    '16': 'src/icons/icon-16.png',
+    '32': 'src/icons/icon-32.png',
+    '48': 'src/icons/icon-48.png',
+    '128': 'src/icons/icon-128.png',
+  },
   permissions: ['sidePanel', 'storage', 'scripting', 'identity'],
   host_permissions: [
     'https://claude.ai/*',
@@ -53,7 +60,12 @@ const manifest: ExtensionManifest = {
   side_panel: {
     default_path: 'src/sidepanel/index.html',
   },
-  action: {},
+  action: {
+    default_icon: {
+      '16': 'src/icons/icon-16.png',
+      '32': 'src/icons/icon-32.png',
+    },
+  },
 }
 
 export default manifest
