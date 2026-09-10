@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "engines": {
-    "node": "22.x"
+    "node": "24.x"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.0",
