@@ -1,4 +1,5 @@
 import type { Button } from '../shared/types'
+import { ICON } from './icons'
 
 export interface ButtonRowContext {
   isRunning: boolean
@@ -32,7 +33,7 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
     const dragHandle = document.createElement('button')
     dragHandle.type = 'button'
     dragHandle.className = 'drag-handle'
-    dragHandle.textContent = '⠿'
+    dragHandle.innerHTML = ICON.grip
     dragHandle.dataset.buttonId = button.id
     dragHandle.setAttribute('aria-label', `Reorder ${button.name}. Press arrow keys to move, or drag.`)
     dragHandle.draggable = true
@@ -126,7 +127,7 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
   if (context.isRunning) {
     const status = document.createElement('p')
     status.className = 'button-row-status'
-    status.textContent = 'Running…'
+    status.textContent = 'Running...'
     item.appendChild(status)
   } else if (context.runError) {
     const status = document.createElement('p')

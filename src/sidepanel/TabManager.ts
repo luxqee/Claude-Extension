@@ -1,5 +1,6 @@
 import type { ToolTab } from '../shared/types'
 import { joinTabLabel, splitTabLabel } from '../shared/tab-label'
+import { ICON } from './icons'
 
 export interface TabManagerContext {
   defaultTabId: string | null
@@ -19,7 +20,7 @@ export function renderTabManager(tabs: ToolTab[], context: TabManagerContext): H
   const back = document.createElement('button')
   back.type = 'button'
   back.className = 'settings-back-button'
-  back.textContent = '← Back'
+  back.innerHTML = ICON.arrowLeft + ' Back'
   back.addEventListener('click', context.onBack)
   panel.appendChild(back)
 
@@ -83,7 +84,7 @@ export function renderTabManager(tabs: ToolTab[], context: TabManagerContext): H
     const up = document.createElement('button')
     up.type = 'button'
     up.className = 'icon-button'
-    up.textContent = '↑'
+    up.innerHTML = ICON.chevronUp
     up.setAttribute('aria-label', `Move ${tab.name} up`)
     up.disabled = index === 0
     up.addEventListener('click', () => context.onReorder(tab.id, 'up'))
@@ -92,7 +93,7 @@ export function renderTabManager(tabs: ToolTab[], context: TabManagerContext): H
     const down = document.createElement('button')
     down.type = 'button'
     down.className = 'icon-button'
-    down.textContent = '↓'
+    down.innerHTML = ICON.chevronDown
     down.setAttribute('aria-label', `Move ${tab.name} down`)
     down.disabled = index === tabs.length - 1
     down.addEventListener('click', () => context.onReorder(tab.id, 'down'))

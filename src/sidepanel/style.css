@@ -479,6 +479,10 @@ h1, h2, h3 {
 }
 
 .icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-input);
@@ -486,6 +490,13 @@ h1, h2, h3 {
   padding: 4px 8px;
   font-size: 12px;
   cursor: pointer;
+}
+
+.icon-button svg,
+.drag-handle svg,
+.settings-back-button svg {
+  display: block;
+  flex-shrink: 0;
 }
 
 .icon-button:disabled {
@@ -577,12 +588,14 @@ h1, h2, h3 {
 }
 
 .drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: none;
   color: var(--text-muted);
   padding: 4px 6px;
-  font-size: 14px;
   cursor: grab;
   flex-shrink: 0;
 }
@@ -591,16 +604,30 @@ h1, h2, h3 {
   cursor: grabbing;
 }
 
-.button-row-wrapper.dragging {
-  opacity: 0.5;
+/* Dragged row lifts off the surface -- scale, tilt, deep shadow. */
+.button-row-wrapper.dragging .button-row {
+  transform: scale(1.03) rotate(-1.2deg);
+  box-shadow: 0 18px 34px -10px rgba(0, 0, 0, 0.5);
+  border-color: var(--accent);
+  opacity: 0.97;
 }
 
-.button-row-wrapper.drag-over-top {
-  box-shadow: 0 -2px 0 0 var(--accent);
+/* Drop target -- a thick accent bar on the edge the row will land on. */
+.button-row-wrapper.drag-over-top .button-row {
+  box-shadow: 0 -3px 0 0 var(--accent);
 }
 
-.button-row-wrapper.drag-over-bottom {
-  box-shadow: 0 2px 0 0 var(--accent);
+.button-row-wrapper.drag-over-bottom .button-row {
+  box-shadow: 0 3px 0 0 var(--accent);
+}
+
+.button-row {
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    transform 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .settings-panel {
@@ -655,6 +682,9 @@ h1, h2, h3 {
 }
 
 .settings-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   align-self: flex-start;
   border: none;
   background: none;
