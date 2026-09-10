@@ -190,6 +190,16 @@ POST   /api/org-tabs-reorder  { "orderedIds": ["...", "..."] }            (direc
 ```
 
 ```
+POST /api/prompt-run   { "promptId": "..." }                             (any active member) -> 204 | 404
+  -- bumps the (prompt, member) lifetime counter and today's org-wide total.
+
+GET  /api/org-analytics                                                  (director-only)
+200 -> { "topPrompts": [ { "promptId", "name", "runCount" } ],
+         "perMember":  [ { "email", "runCount", "lastUsedAt" } ],
+         "dailyRuns":  [ { "day", "runCount" } ] }   // last 30 days
+```
+
+```
 POST /api/usage-report
 Authorization: Bearer <google-id-token>
 Body: { "sessionPercent": number | null, "weeklyPercent": number | null, "spendPercent": number | null }
