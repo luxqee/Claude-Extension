@@ -47,6 +47,8 @@ export interface RunState {
 export interface SettingsState {
   error: string | null
   successCount: number | null
+  signingIn: boolean
+  orgResolving: boolean
 }
 
 export interface RenderContext {
@@ -183,6 +185,8 @@ export function renderApp(
         importError: settingsState.error,
         importSuccessCount: settingsState.successCount,
         session,
+        signingIn: settingsState.signingIn,
+        orgResolving: settingsState.orgResolving,
         onSignIn: context.onSignIn,
         onSignOut: context.onSignOut,
         orgSession,

@@ -217,14 +217,19 @@ h1, h2, h3 {
   flex-shrink: 0;
 }
 
-/* Glyph icons (⚙ ☰ ↑ ↓ ← / @ + ·) render from a symbol-complete system
-   font instead of Alfabet, whose demo subset lacks or mis-draws them. */
+/* Glyph icons (⚙ ☰ ↑ ↓ ← / @ + ·) and text that carries them (emails,
+   hints) render from a symbol-complete system font -- the demo Alfabet
+   subset draws @, +, ", · etc as blanks. */
 .gi,
 .skill-badge,
 .drag-handle,
 .settings-button,
 .tab-chip-add,
-.roster-row-status {
+.roster-row-status,
+.roster-row-email,
+.settings-hint,
+.roster-add-form input,
+input[type='email'] {
   font-family: "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols2", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 

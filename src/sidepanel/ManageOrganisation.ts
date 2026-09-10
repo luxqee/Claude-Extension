@@ -458,9 +458,7 @@ function renderAnalytics(state: ManageOrgState): DocumentFragment {
   const totalRuns = a.perMember.reduce((sum, m) => sum + m.runCount, 0)
   const activeMembers = a.perMember.filter((m) => m.runCount > 0).length
 
-  // Accent-outlined panel, matching the AIRE border-2 border-primary card.
-  const panel = document.createElement('div')
-  panel.className = 'accent-panel'
+  const panel = frag
 
   const tiles = document.createElement('div')
   tiles.className = 'stat-tiles'
@@ -528,7 +526,6 @@ function renderAnalytics(state: ManageOrgState): DocumentFragment {
   })
   panel.appendChild(perList)
 
-  frag.appendChild(panel)
   return frag
 }
 

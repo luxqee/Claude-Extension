@@ -99,7 +99,12 @@ chrome.runtime.onMessage.addListener((message) => {
     }
   }
 })
-const settingsState: SettingsState = { error: null, successCount: null }
+const settingsState: SettingsState = {
+  error: null,
+  successCount: null,
+  signingIn: false,
+  orgResolving: false,
+}
 let focusHandleId: string | null = null
 
 function clearRunErrors(): void {
@@ -116,6 +121,17 @@ function announce(message: string): void {
 }
 
 async function resolveOrgSession(root: HTMLElement): Promise<void> {
+  settingsState.orgResolving = true
+  if (view.mode === 'settings') void refresh(root)
+  try {
+    await resolveOrgSessionInner(root)
+  } finally {
+    settingsState.orgResolving = false
+    if (view.mode === 'settings') void refresh(root)
+  }
+}
+
+async function resolveOrgSessionInner(root: HTMLElement): Promise<void> {
   const startedForSession = session
   const idToken = await authAdapter.getValidToken()
   if (session !== startedForSession) return
@@ -580,7 +596,14 @@ async function refresh(root: HTMLElement): Promise<void> {
         void refresh(root)
       },
       onSignIn: async (providerId: ProviderId) => {
-        const result = await authAdapter.signIn(providerId)
+        settingsState.signingIn = true
+        await refresh(root)
+        let result: { email: string } | null = null
+        try {
+          result = await authAdapter.signIn(providerId)
+        } finally {
+          settingsState.signingIn = false
+        }
         if (result) {
           session = { email: result.email }
           announce(`Signed in as ${result.email}`)

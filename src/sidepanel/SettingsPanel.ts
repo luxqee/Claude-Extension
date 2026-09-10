@@ -9,6 +9,10 @@ export interface SettingsPanelContext {
   importError: string | null
   importSuccessCount: number | null
   session: { email: string } | null
+  /** An interactive sign-in flow is running. */
+  signingIn: boolean
+  /** Signed in; the org session (and role) is still being fetched. */
+  orgResolving: boolean
   onSignIn: (providerId: ProviderId) => void
   onSignOut: () => void
   orgSession: OrgSessionState | null
@@ -26,7 +30,17 @@ export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement 
 
   const authSection = document.createElement('div')
   authSection.className = 'settings-section'
-  if (context.session) {
+
+  const loadingLine = (text: string): HTMLElement => {
+    const p = document.createElement('p')
+    p.className = 'loading-line'
+    p.textContent = text
+    return p
+  }
+
+  if (context.signingIn) {
+    authSection.appendChild(loadingLine('Signing in...'))
+  } else if (context.session) {
     const signedInAs = document.createElement('p')
     signedInAs.className = 'settings-hint'
     signedInAs.textContent = `Signed in as ${context.session.email}`
@@ -46,6 +60,8 @@ export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement 
       manageButton.textContent = 'Manage Organisation'
       manageButton.addEventListener('click', context.onOpenManageOrg)
       authSection.appendChild(manageButton)
+    } else if (context.orgResolving) {
+      authSection.appendChild(loadingLine('Checking organisation...'))
     }
   } else {
     const signInLabel = document.createElement('p')
