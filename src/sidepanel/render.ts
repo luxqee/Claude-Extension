@@ -86,7 +86,7 @@ export interface RenderContext {
   onCreateOrgTab: (name: string) => void
   onRenameOrgTab: (id: string, name: string, emoji: string | null) => void
   onDeleteOrgTab: (id: string) => void
-  onMoveOrgTab: (id: string, direction: 'up' | 'down') => void
+  onReorderOrgTabs: (orderedIds: string[]) => void
   onCreatePrompt: (data: { name: string; promptText: string; type: 'prompt' | 'skill'; tabId: string }) => void
   onUpdatePrompt: (
     id: string,
@@ -163,7 +163,7 @@ export function renderApp(
         defaultTabId: tabState.defaultTabId,
         buttonCountByTab,
         onRename: context.onRenameTab,
-        onReorder: context.onMoveTab,
+        onReorder: context.onReorderTabs,
         onDelete: context.onDeleteTab,
         onSetDefault: context.onSetDefaultTab,
         onAdd: context.onAddTab,
@@ -209,7 +209,7 @@ export function renderApp(
         onCreateOrgTab: context.onCreateOrgTab,
         onRenameOrgTab: context.onRenameOrgTab,
         onDeleteOrgTab: context.onDeleteOrgTab,
-        onMoveOrgTab: context.onMoveOrgTab,
+        onReorderOrgTabs: context.onReorderOrgTabs,
         onCreatePrompt: context.onCreatePrompt,
         onUpdatePrompt: context.onUpdatePrompt,
         onDeletePrompt: context.onDeletePrompt,

@@ -1,7 +1,7 @@
-import { insertPrompt } from './claude-adapter'
+import { insertPrompt, watchForSend } from './claude-adapter'
 import { initUsageWidget, refreshWidget } from './usage-widget'
 import { fetchUsage } from './usage-client'
-import type { GetUsageRequest, InsertPromptRequest } from '../shared/messages'
+import type { GetUsageRequest, InsertPromptRequest, PromptSentMessage } from '../shared/messages'
 
 console.log('[Claude Tools] content script loaded on', window.location.href)
 
@@ -9,11 +9,19 @@ void initUsageWidget()
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!message || (message as InsertPromptRequest).type !== 'INSERT_PROMPT') return undefined
-  const { prompt } = message as InsertPromptRequest
+  const { prompt, runToken } = message as InsertPromptRequest
   insertPrompt(prompt)
     .then((response) => {
       sendResponse(response)
       void refreshWidget()
+      if (response.ok && runToken) {
+        watchForSend(() => {
+          const sent: PromptSentMessage = { type: 'PROMPT_SENT', runToken }
+          chrome.runtime.sendMessage(sent).catch(() => {
+            /* sidebar closed -- nothing to report to */
+          })
+        })
+      }
     })
     .catch((error) => {
       console.error('[Claude Tools] unexpected error during insertPrompt', error)

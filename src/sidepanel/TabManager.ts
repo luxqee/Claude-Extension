@@ -1,11 +1,12 @@
 import type { ToolTab } from '../shared/types'
 import { joinTabLabel, splitTabLabel } from '../shared/tab-label'
+import { moveInList } from '../shared/list-order'
 
 export interface TabManagerContext {
   defaultTabId: string | null
   buttonCountByTab: Record<string, number>
   onRename: (id: string, name: string, emoji: string | null) => void
-  onReorder: (id: string, direction: 'up' | 'down') => void
+  onReorder: (orderedIds: string[]) => void
   onDelete: (id: string) => void
   onSetDefault: (id: string) => void
   onAdd: () => void
@@ -28,12 +29,55 @@ export function renderTabManager(tabs: ToolTab[], context: TabManagerContext): H
   heading.textContent = 'Tabs'
   panel.appendChild(heading)
 
+  const ids = tabs.map((t) => t.id)
   const list = document.createElement('ul')
   list.className = 'tab-manager-list'
 
-  tabs.forEach((tab, index) => {
+  tabs.forEach((tab) => {
     const row = document.createElement('li')
     row.className = 'tab-manager-row'
+    row.dataset.tabId = tab.id
+
+    const handle = document.createElement('button')
+    handle.type = 'button'
+    handle.className = 'drag-handle'
+    handle.textContent = '☰'
+    handle.setAttribute('aria-label', `Reorder ${tab.name}. Arrow keys to move, or drag.`)
+    handle.draggable = true
+    handle.addEventListener('dragstart', (event) => {
+      event.dataTransfer?.setData('text/plain', tab.id)
+      row.classList.add('dragging')
+    })
+    handle.addEventListener('dragend', () => row.classList.remove('dragging'))
+    handle.addEventListener('keydown', (event) => {
+      const i = ids.indexOf(tab.id)
+      if (event.key === 'ArrowUp' && i > 0) {
+        event.preventDefault()
+        context.onReorder(moveInList(ids, tab.id, ids[i - 1], 'before'))
+      } else if (event.key === 'ArrowDown' && i < ids.length - 1) {
+        event.preventDefault()
+        context.onReorder(moveInList(ids, tab.id, ids[i + 1], 'after'))
+      }
+    })
+    row.appendChild(handle)
+
+    row.addEventListener('dragover', (event) => {
+      event.preventDefault()
+      const rect = row.getBoundingClientRect()
+      const after = event.clientY - rect.top > rect.height / 2
+      row.classList.toggle('drag-over-top', !after)
+      row.classList.toggle('drag-over-bottom', after)
+    })
+    row.addEventListener('dragleave', () => row.classList.remove('drag-over-top', 'drag-over-bottom'))
+    row.addEventListener('drop', (event) => {
+      event.preventDefault()
+      row.classList.remove('drag-over-top', 'drag-over-bottom')
+      const draggedId = event.dataTransfer?.getData('text/plain')
+      if (!draggedId || draggedId === tab.id) return
+      const rect = row.getBoundingClientRect()
+      const after = event.clientY - rect.top > rect.height / 2
+      context.onReorder(moveInList(ids, draggedId, tab.id, after ? 'after' : 'before'))
+    })
 
     const label = document.createElement('input')
     label.type = 'text'
@@ -57,7 +101,6 @@ export function renderTabManager(tabs: ToolTab[], context: TabManagerContext): H
         ;(e.target as HTMLInputElement).blur()
       }
     })
-
     row.appendChild(label)
 
     const count = context.buttonCountByTab[tab.id] ?? 0
@@ -79,24 +122,6 @@ export function renderTabManager(tabs: ToolTab[], context: TabManagerContext): H
     defaultLabel.appendChild(defaultRadio)
     defaultLabel.appendChild(document.createTextNode('Default'))
     controls.appendChild(defaultLabel)
-
-    const up = document.createElement('button')
-    up.type = 'button'
-    up.className = 'icon-button'
-    up.innerHTML = '<span class="gi">↑</span>'
-    up.setAttribute('aria-label', `Move ${tab.name} up`)
-    up.disabled = index === 0
-    up.addEventListener('click', () => context.onReorder(tab.id, 'up'))
-    controls.appendChild(up)
-
-    const down = document.createElement('button')
-    down.type = 'button'
-    down.className = 'icon-button'
-    down.innerHTML = '<span class="gi">↓</span>'
-    down.setAttribute('aria-label', `Move ${tab.name} down`)
-    down.disabled = index === tabs.length - 1
-    down.addEventListener('click', () => context.onReorder(tab.id, 'down'))
-    controls.appendChild(down)
 
     const del = document.createElement('button')
     del.type = 'button'

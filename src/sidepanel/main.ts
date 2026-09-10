@@ -82,6 +82,21 @@ const USAGE_REPORT_INTERVAL_MS = 15 * 60 * 1000
 let usageReportTimer: ReturnType<typeof setInterval> | null = null
 const TEAM_RUN_KEY = '__team_prompt_run__'
 const runState = new Map<string, RunState>()
+
+// Analytics fire when an inserted prompt is actually sent, not on click.
+// The content script watches the chat input and posts PROMPT_SENT with
+// the run token; the callback stored here then records the run.
+const pendingRuns = new Map<string, () => void>()
+chrome.runtime.onMessage.addListener((message) => {
+  const m = message as { type?: unknown; runToken?: unknown }
+  if (m?.type === 'PROMPT_SENT' && typeof m.runToken === 'string') {
+    const callback = pendingRuns.get(m.runToken)
+    if (callback) {
+      pendingRuns.delete(m.runToken)
+      callback()
+    }
+  }
+})
 const settingsState: SettingsState = { error: null, successCount: null }
 let focusHandleId: string | null = null
 
@@ -272,7 +287,12 @@ async function refresh(root: HTMLElement): Promise<void> {
             return
           }
 
-          const request: InsertPromptRequest = { type: 'INSERT_PROMPT', prompt: button.prompt }
+          const runToken = crypto.randomUUID()
+          const request: InsertPromptRequest = {
+            type: 'INSERT_PROMPT',
+            prompt: button.prompt,
+            runToken,
+          }
           let response: InsertPromptResponse
           try {
             response = await chrome.tabs.sendMessage<InsertPromptRequest, InsertPromptResponse>(
@@ -289,7 +309,11 @@ async function refresh(root: HTMLElement): Promise<void> {
 
           if (response.ok) {
             runState.set(button.id, { isRunning: false, error: null })
-            await recordButtonRun(button.id)
+            pendingRuns.set(runToken, () => {
+              void recordButtonRun(button.id).then(() => {
+                if (view.mode === 'list') void refresh(root)
+              })
+            })
           } else {
             console.error('[Claude Tools] run failed', response.error, response.message)
             runState.set(button.id, { isRunning: false, error: response.message })
@@ -669,15 +693,10 @@ async function refresh(root: HTMLElement): Promise<void> {
         }
         await refreshOrgPrompts(root)
       },
-      onMoveOrgTab: async (id: string, direction: 'up' | 'down') => {
-        const ids = teamPrompts.tabs.map((t) => t.id)
-        const i = ids.indexOf(id)
-        const j = direction === 'up' ? i - 1 : i + 1
-        if (i === -1 || j < 0 || j >= ids.length) return
-        ;[ids[i], ids[j]] = [ids[j], ids[i]]
+      onReorderOrgTabs: async (orderedIds: string[]) => {
         const idToken = await authAdapter.getValidToken()
         if (!idToken) return
-        await reorderOrgTabs(idToken, ids)
+        await reorderOrgTabs(idToken, orderedIds)
         await refreshOrgPrompts(root)
       },
       onCreatePrompt: async (data) => {
@@ -722,7 +741,12 @@ async function refresh(root: HTMLElement): Promise<void> {
               announce('Open claude.ai to use this tool.')
               return
             }
-            const request: InsertPromptRequest = { type: 'INSERT_PROMPT', prompt: prompt.promptText }
+            const runToken = crypto.randomUUID()
+            const request: InsertPromptRequest = {
+              type: 'INSERT_PROMPT',
+              prompt: prompt.promptText,
+              runToken,
+            }
             let response: InsertPromptResponse
             try {
               response = await chrome.tabs.sendMessage<InsertPromptRequest, InsertPromptResponse>(
@@ -736,8 +760,10 @@ async function refresh(root: HTMLElement): Promise<void> {
             }
             if (response.ok) {
               announce(`Inserted ${prompt.name}.`)
-              void authAdapter.getValidToken().then((token) => {
-                if (token) void reportPromptRun(token, prompt.id)
+              pendingRuns.set(runToken, () => {
+                void authAdapter.getValidToken().then((token) => {
+                  if (token) void reportPromptRun(token, prompt.id)
+                })
               })
             } else {
               console.error('[Claude Tools] team prompt run failed', response.error, response.message)
