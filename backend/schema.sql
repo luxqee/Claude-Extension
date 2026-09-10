@@ -158,13 +158,14 @@ create policy usage_snapshots_update on usage_snapshots
 -- Phase 5: organisation shared tabs, and Phase 9: prompt-run analytics.
 --
 -- Migrating an existing database in place (rather than starting fresh):
--- run everything from the `create table org_tabs` line to the end. It is
--- all additive (new tables, two nullable/defaulted columns on `prompts`)
--- and the `do $$ ... $$` backfill block is safe to re-run -- it only acts
--- on prompts that still have a null tab_id.
+-- run everything from this line to the end of the file. It is all additive
+-- (new tables, two nullable/defaulted columns on `prompts`) and fully
+-- re-runnable -- every `create table` is `if not exists`, every policy is
+-- dropped-then-created, and the backfill block only touches prompts whose
+-- tab_id is still null.
 -- ===========================================================================
 
-create table org_tabs (
+create table if not exists org_tabs (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id),
   name text not null,
@@ -179,18 +180,22 @@ alter table org_tabs force row level security;
 -- Same defense-in-depth split as prompts/org_members: RLS proves org
 -- isolation on read; the API layer proves the caller is a director of the
 -- target org before any write. Hence the unconditional insert policy.
+drop policy if exists org_tabs_isolation on org_tabs;
 create policy org_tabs_isolation on org_tabs
   for select
   using (org_id = current_setting('app.current_org_id', true)::uuid);
 
+drop policy if exists org_tabs_insert on org_tabs;
 create policy org_tabs_insert on org_tabs
   for insert
   with check (true);
 
+drop policy if exists org_tabs_update on org_tabs;
 create policy org_tabs_update on org_tabs
   for update
   using (org_id = current_setting('app.current_org_id', true)::uuid);
 
+drop policy if exists org_tabs_delete on org_tabs;
 create policy org_tabs_delete on org_tabs
   for delete
   using (org_id = current_setting('app.current_org_id', true)::uuid);
@@ -219,7 +224,7 @@ end $$;
 -- Lifetime run counters, one row per (prompt, member). Upserted on each
 -- reported prompt run. `on delete cascade` on prompt_id so removing a
 -- shared prompt takes its usage rows with it.
-create table org_prompt_usage (
+create table if not exists org_prompt_usage (
   org_id uuid not null references organizations(id),
   prompt_id uuid not null references prompts(id) on delete cascade,
   email text not null,
@@ -231,14 +236,17 @@ create table org_prompt_usage (
 alter table org_prompt_usage enable row level security;
 alter table org_prompt_usage force row level security;
 
+drop policy if exists org_prompt_usage_isolation on org_prompt_usage;
 create policy org_prompt_usage_isolation on org_prompt_usage
   for select
   using (org_id = current_setting('app.current_org_id', true)::uuid);
 
+drop policy if exists org_prompt_usage_insert on org_prompt_usage;
 create policy org_prompt_usage_insert on org_prompt_usage
   for insert
   with check (true);
 
+drop policy if exists org_prompt_usage_update on org_prompt_usage;
 create policy org_prompt_usage_update on org_prompt_usage
   for update
   using (org_id = current_setting('app.current_org_id', true)::uuid);
@@ -247,7 +255,7 @@ create policy org_prompt_usage_update on org_prompt_usage
 -- per-prompt or per-member breakdown here -- that comes from
 -- org_prompt_usage. Rows older than 30 days are pruned on each write, so
 -- this table stays tiny and needs no separate retention job.
-create table org_daily_runs (
+create table if not exists org_daily_runs (
   org_id uuid not null references organizations(id),
   day date not null,
   run_count integer not null default 0,
@@ -257,18 +265,22 @@ create table org_daily_runs (
 alter table org_daily_runs enable row level security;
 alter table org_daily_runs force row level security;
 
+drop policy if exists org_daily_runs_isolation on org_daily_runs;
 create policy org_daily_runs_isolation on org_daily_runs
   for select
   using (org_id = current_setting('app.current_org_id', true)::uuid);
 
+drop policy if exists org_daily_runs_insert on org_daily_runs;
 create policy org_daily_runs_insert on org_daily_runs
   for insert
   with check (true);
 
+drop policy if exists org_daily_runs_update on org_daily_runs;
 create policy org_daily_runs_update on org_daily_runs
   for update
   using (org_id = current_setting('app.current_org_id', true)::uuid);
 
+drop policy if exists org_daily_runs_delete on org_daily_runs;
 create policy org_daily_runs_delete on org_daily_runs
   for delete
   using (org_id = current_setting('app.current_org_id', true)::uuid);
