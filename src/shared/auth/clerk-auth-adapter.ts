@@ -102,9 +102,24 @@ export class ClerkAuthAdapter implements AuthAdapter {
 
     let redirectUrl: string | undefined
     try {
-      redirectUrl = await chrome.identity.launchWebAuthFlow({ url: authUrl, interactive })
+      redirectUrl = await chrome.identity.launchWebAuthFlow(
+        interactive
+          ? { url: authUrl, interactive: true }
+          : {
+              url: authUrl,
+              interactive: false,
+              // Clerk's hosted authorize page redirects via JavaScript after
+              // it loads; without this a silent refresh always fails.
+              abortOnLoadForNonInteractive: false,
+              timeoutMsForNonInteractive: 8000,
+            },
+      )
     } catch (error) {
-      console.error('[Claude Tools] Clerk sign-in flow failed', error)
+      if (interactive) {
+        console.error('[Claude Tools] Clerk sign-in flow failed', error)
+      } else {
+        console.debug('[Claude Tools] silent Clerk token refresh not possible', error)
+      }
       return null
     }
     if (!redirectUrl) return null

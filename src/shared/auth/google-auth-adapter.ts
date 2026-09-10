@@ -45,9 +45,29 @@ export class GoogleAuthAdapter implements AuthAdapter {
 
     let redirectUrl: string | undefined
     try {
-      redirectUrl = await chrome.identity.launchWebAuthFlow({ url: authUrl, interactive })
+      redirectUrl = await chrome.identity.launchWebAuthFlow(
+        interactive
+          ? { url: authUrl, interactive: true }
+          : {
+              url: authUrl,
+              interactive: false,
+              // Google completes a silent re-auth with a JavaScript redirect
+              // after the page loads. The default (abort on first load) never
+              // sees that redirect, so silent refresh would always fail with
+              // "User interaction required". Give the page a few seconds.
+              abortOnLoadForNonInteractive: false,
+              timeoutMsForNonInteractive: 8000,
+            },
+      )
     } catch (error) {
-      console.error('[Claude Tools] Google sign-in flow failed', error)
+      // A silent refresh that needs the account chooser / consent is a normal,
+      // expected outcome -- the caller falls back to the stored token or an
+      // interactive sign-in. Only a failed *interactive* attempt is an error.
+      if (interactive) {
+        console.error('[Claude Tools] Google sign-in flow failed', error)
+      } else {
+        console.debug('[Claude Tools] silent Google token refresh not possible', error)
+      }
       return null
     }
     if (!redirectUrl) return null
