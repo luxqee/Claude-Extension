@@ -104,6 +104,24 @@ body {
   color: var(--text-primary);
 }
 
+/* Form controls don't inherit the page font by default -- force it so
+   inputs, buttons, selects and placeholder text are all Alfabet. */
+button,
+input,
+textarea,
+select,
+optgroup {
+  font-family: var(--font-sans);
+  font-size: inherit;
+  line-height: inherit;
+}
+
+::placeholder {
+  font-family: var(--font-sans);
+  color: var(--text-muted);
+  opacity: 1;
+}
+
 /* ALL-CAPS letter-spaced section label, AIRE-style. */
 .eyebrow,
 .team-section-heading,
@@ -772,10 +790,8 @@ h1, h2, h3 {
 
 .tab-strip-list {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
-  overflow-x: auto;
-  scrollbar-width: thin;
-  padding-bottom: 2px;
 }
 
 .tab-chip {
