@@ -289,7 +289,7 @@ async function refresh(root: HTMLElement): Promise<void> {
 
           if (response.ok) {
             runState.set(button.id, { isRunning: false, error: null })
-            void recordButtonRun(button.id)
+            await recordButtonRun(button.id)
           } else {
             console.error('[Claude Tools] run failed', response.error, response.message)
             runState.set(button.id, { isRunning: false, error: response.message })
