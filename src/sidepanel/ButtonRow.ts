@@ -59,7 +59,7 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
   if (button.type === 'skill') {
     const badge = document.createElement('span')
     badge.className = 'skill-badge'
-    badge.textContent = '/'
+    badge.textContent = button.prompt.trim().startsWith('@') ? '@' : '/'
     badge.setAttribute('aria-hidden', 'true')
     row.appendChild(badge)
   }

@@ -943,39 +943,32 @@ h1, h2, h3 {
   background: var(--accent-solid-hover);
 }
 
-/* Outline buttons -- accent border + accent text, fill accent on hover
-   and press. Matches the AIRE "border-2 border-primary" treatment. */
+/* Restrained pill -- thin neutral border, muted text; on hover the
+   border picks up a faint accent tint and the text darkens. Matches the
+   AIRE "Choose your market" nav link. No fill. */
 .settings-action-button,
 .roster-add-form button[type='submit'],
 .sort-toggle,
-.tab-strip-manage {
-  border: 2px solid var(--accent);
+.tab-strip-manage,
+.icon-button:not(.icon-button-danger) {
+  border: 1px solid var(--border);
   background: var(--surface-card);
-  color: var(--accent);
+  color: var(--text-muted);
 }
 
-.settings-action-button:hover,
+.settings-action-button:hover:not(:disabled),
 .roster-add-form button[type='submit']:hover,
 .sort-toggle:hover,
-.tab-strip-manage:hover {
-  background: var(--accent-solid);
-  border-color: var(--accent-solid);
-  color: var(--accent-text-on);
-}
-
-.settings-action-button:active,
-.roster-add-form button[type='submit']:active,
-.sort-toggle:active,
-.tab-strip-manage:active {
-  background: var(--accent-solid-hover);
-  border-color: var(--accent-solid-hover);
-  color: var(--accent-text-on);
+.tab-strip-manage:hover,
+.icon-button:not(.icon-button-danger):hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  color: var(--text-primary);
+  background: var(--surface-card);
 }
 
 .sort-toggle[aria-pressed='true'] {
-  background: var(--accent-solid);
-  border-color: var(--accent-solid);
-  color: var(--accent-text-on);
+  border-color: var(--accent);
+  color: var(--text-primary);
 }
 
 .settings-heading {

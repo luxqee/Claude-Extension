@@ -7,7 +7,7 @@ function renderPromptRow(prompt: OrgPrompt, onRun: (p: OrgPrompt) => void): HTML
   if (prompt.type === 'skill') {
     const badge = document.createElement('span')
     badge.className = 'skill-badge'
-    badge.textContent = '/'
+    badge.textContent = prompt.promptText.trim().startsWith('@') ? '@' : '/'
     badge.setAttribute('aria-hidden', 'true')
     item.appendChild(badge)
   }
