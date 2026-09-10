@@ -134,6 +134,15 @@ export function renderApp(
 ): void {
   root.innerHTML = ''
 
+  // Persistent AIRE wordmark, top-left of every view.
+  const appHeader = document.createElement('div')
+  appHeader.className = 'app-header'
+  const brand = document.createElement('span')
+  brand.className = 'wordmark'
+  brand.innerHTML = AIRE_LOGO_SVG
+  appHeader.appendChild(brand)
+  root.appendChild(appHeader)
+
   if (view.mode === 'form') {
     root.appendChild(
       renderEditForm(view.button, tabState.tabs, tabState.activeTabId, {
@@ -214,11 +223,6 @@ export function renderApp(
 
   const header = document.createElement('div')
   header.className = 'toolbar'
-
-  const wordmark = document.createElement('span')
-  wordmark.className = 'wordmark'
-  wordmark.innerHTML = AIRE_LOGO_SVG
-  header.appendChild(wordmark)
 
   const headerActions = document.createElement('div')
   headerActions.className = 'toolbar-actions'
