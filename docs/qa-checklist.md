@@ -66,9 +66,7 @@ open a fresh claude.ai tab.
 - [ ] The last admin cannot be removed or demoted (button blocked / error).
 - [ ] Create / rename / reorder / delete a shared tab.
 - [ ] Create / edit / delete a shared prompt; assign it to a tab.
-- [ ] Analytics: Prompt runs, Active members, the per-day chart (a single
-      day shows as one small bar, **not** a full-width block), Top prompts,
-      Per member.
+- [ ] Analytics: Prompt runs, Active members, Top prompts, Per member.
 - [ ] Member usage limits section lists snapshots once members report.
 
 ## 7. Member / pending

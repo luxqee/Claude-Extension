@@ -1164,40 +1164,6 @@ select {
   color: var(--text-muted);
 }
 
-.runs-chart {
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-start;
-  gap: 3px;
-  height: 56px;
-  padding: 6px 8px;
-  margin-bottom: 12px;
-  background: var(--surface-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  margin-bottom: 4px;
-}
-
-.runs-chart-bar {
-  flex: 1 1 0;
-  min-width: 3px;
-  max-width: 12px;
-  background: var(--accent);
-  border-radius: 2px 2px 0 0;
-  opacity: 0.85;
-}
-
-.runs-chart-bar:hover {
-  opacity: 1;
-}
-
-.runs-chart-caption {
-  margin: 0 0 12px;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
 /* Accent-outlined container -- AIRE border-2 border-primary card. */
 .accent-panel {
   display: flex;
@@ -1208,8 +1174,7 @@ select {
   padding: 12px;
 }
 
-.accent-panel .stat-tiles,
-.accent-panel .runs-chart {
+.accent-panel .stat-tiles {
   margin: 0;
 }
 
