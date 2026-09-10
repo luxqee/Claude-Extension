@@ -11,8 +11,36 @@ directory.
 Set these in the Vercel project's Settings -> Environment Variables:
 
 - `DATABASE_URL` -- a Neon Postgres connection string.
-- `GOOGLE_OAUTH_CLIENT_ID` -- the OAuth Client ID (type "Chrome Extension")
-  created in Google Cloud Console for this extension.
+- `GOOGLE_OAUTH_CLIENT_ID` -- the OAuth Client ID created in Google Cloud
+  Console for this extension. Must be the **same** client ID the extension
+  itself uses in `src/shared/auth/google-auth-adapter.ts`, since the
+  backend verifies each id_token with this value as the expected audience.
+- `SESSION_JWT_SECRET` -- a long random string (e.g. `openssl rand -hex 32`).
+  Used to sign and verify the backend session tokens the extension gets
+  from `POST /api/auth/session` and then sends on every other call. Keep
+  it secret; it never ships in the extension. If it is unset the API
+  still works -- it just falls back to verifying a Google id_token on
+  every request, the pre-session-token behaviour.
+
+### Google OAuth consent screen
+
+Multi-machine sign-in does **not** need per-device configuration: the
+extension ID is pinned (`key` in `manifest.config.ts`), so every build of
+this repo has the same ID and the same single redirect URI
+`https://fhaeedmmhjjkhnopifppigddjbbmdegh.chromiumapp.org/`, registered
+once in the OAuth client.
+
+What does gate a group of testers is the consent screen's **publishing
+status** (Google Cloud Console -> APIs & Services -> OAuth consent
+screen):
+
+- **Testing** -- only emails listed under *Test users* can sign in at all;
+  everyone else gets `access_denied`, and issued grants expire after ~7
+  days. Fine for a handful of known testers if you add each one.
+- **In production** -- anyone with a Google account can sign in. The
+  scopes in use (`openid`, `email`) are non-sensitive, so **Publish app**
+  takes effect immediately with no Google review. Recommended for a
+  tester group of any real size.
 
 ## Database setup
 
@@ -92,9 +120,23 @@ Either:
 
 ## API
 
+Every endpoint's `Authorization: Bearer <token>` accepts **either** a
+Google id_token (straight from the extension's sign-in) **or** a backend
+session token from `POST /api/auth/session`. The extension exchanges once
+after sign-in and then sends the session token.
+
+```
+POST /api/auth/session
+Authorization: Bearer <google-id-token>
+
+200 -> { "sessionToken": "<jwt>", "email": "a@b.com", "expiresAt": "<ISO-8601>" }
+401 -> Google id_token missing or invalid
+500 -> SESSION_JWT_SECRET not configured on the server
+```
+
 ```
 GET /api/org-prompts
-Authorization: Bearer <google-id-token>
+Authorization: Bearer <token>   (Google id_token or session token)
 
 200 -> { "org": { "name": "Acme" }, "prompts": [ { "name": "...", "prompt_text": "...", "type": "prompt" } ] }
 200 -> { "org": null, "prompts": [] }   // token verifies, but the caller has no active org_members row

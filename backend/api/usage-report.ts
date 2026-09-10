@@ -1,22 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { OAuth2Client } from 'google-auth-library'
 import { neon } from '@neondatabase/serverless'
+import { resolveEmail } from '../lib/resolve-email.js'
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID ?? ''
 const sql = neon(process.env.DATABASE_URL ?? '')
-const oauthClient = new OAuth2Client(GOOGLE_CLIENT_ID)
-
-async function verifyEmail(idToken: string): Promise<string | null> {
-  try {
-    const ticket = await oauthClient.verifyIdToken({ idToken, audience: GOOGLE_CLIENT_ID })
-    const payload = ticket.getPayload()
-    if (!payload?.email_verified) return null
-    return payload.email ?? null
-  } catch (error) {
-    console.error('[usage-report] token verification failed', error)
-    return null
-  }
-}
 
 const INVALID_PERCENT = Symbol('invalid percent')
 
@@ -40,14 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return
   }
 
-  const authHeader = req.headers.authorization
-  const idToken = authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null
-  if (!idToken) {
-    res.status(401).json({ error: 'missing token' })
-    return
-  }
-
-  const email = await verifyEmail(idToken)
+  const email = await resolveEmail(req.headers.authorization)
   if (!email) {
     res.status(401).json({ error: 'invalid token' })
     return

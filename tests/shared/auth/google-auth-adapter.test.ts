@@ -4,12 +4,14 @@ declare const Buffer: {
   }
 }
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi, afterEach } from 'vitest'
 import {
   buildGoogleAuthUrl,
   extractIdTokenFromRedirect,
   decodeIdToken,
   isTokenExpired,
+  isSessionTokenFresh,
+  exchangeIdTokenForSession,
 } from '../../../src/shared/auth/google-auth-adapter'
 
 function makeFakeIdToken(payload: Record<string, unknown>): string {
@@ -86,5 +88,85 @@ describe('isTokenExpired', () => {
 
   it('returns true when exp is null', () => {
     expect(isTokenExpired(null, now)).toBe(true)
+  })
+})
+
+describe('isSessionTokenFresh', () => {
+  const now = 1_700_000_000
+
+  it('is true when expiry is comfortably ahead of the 5-minute skew', () => {
+    expect(isSessionTokenFresh(now + 3600, now)).toBe(true)
+  })
+
+  it('is false inside the 5-minute skew window', () => {
+    expect(isSessionTokenFresh(now + 120, now)).toBe(false)
+  })
+
+  it('is false for an expiry in the past', () => {
+    expect(isSessionTokenFresh(now - 10, now)).toBe(false)
+  })
+
+  it('is false when expiry is undefined (no session token held)', () => {
+    expect(isSessionTokenFresh(undefined, now)).toBe(false)
+  })
+})
+
+describe('exchangeIdTokenForSession', () => {
+  const originalFetch = globalThis.fetch
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+    vi.restoreAllMocks()
+  })
+
+  function stubFetch(impl: () => Promise<Response> | Response): void {
+    globalThis.fetch = vi.fn(impl) as unknown as typeof fetch
+  }
+
+  it('returns the session token, email and epoch-seconds expiry on success', async () => {
+    const expiresAtIso = new Date(1_700_000_000_000 + 1000).toISOString()
+    stubFetch(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ sessionToken: 'sess.jwt.sig', email: 'a@b.com', expiresAt: expiresAtIso }), {
+          status: 200,
+        }),
+      ),
+    )
+    const result = await exchangeIdTokenForSession('google-id-token')
+    expect(result).toEqual({
+      sessionToken: 'sess.jwt.sig',
+      email: 'a@b.com',
+      expiresAt: Math.floor(new Date(expiresAtIso).getTime() / 1000),
+    })
+  })
+
+  it('sends the id_token as a Bearer Authorization header', async () => {
+    const fetchSpy = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ sessionToken: 't', email: 'a@b.com', expiresAt: new Date().toISOString() }), {
+          status: 200,
+        }),
+      ),
+    )
+    globalThis.fetch = fetchSpy as unknown as typeof fetch
+    await exchangeIdTokenForSession('the-id-token')
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    expect(init.method).toBe('POST')
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer the-id-token')
+  })
+
+  it('returns null on a non-2xx response', async () => {
+    stubFetch(() => Promise.resolve(new Response('nope', { status: 401 })))
+    expect(await exchangeIdTokenForSession('x')).toBeNull()
+  })
+
+  it('returns null when the response body is missing fields', async () => {
+    stubFetch(() => Promise.resolve(new Response(JSON.stringify({ sessionToken: 'only-this' }), { status: 200 })))
+    expect(await exchangeIdTokenForSession('x')).toBeNull()
+  })
+
+  it('returns null when fetch throws', async () => {
+    stubFetch(() => Promise.reject(new Error('offline')))
+    expect(await exchangeIdTokenForSession('x')).toBeNull()
   })
 })

@@ -76,7 +76,7 @@ function announce(message: string): void {
 
 async function resolveOrgSession(root: HTMLElement): Promise<void> {
   const startedForSession = session
-  const idToken = await authAdapter.getValidIdToken()
+  const idToken = await authAdapter.getValidToken()
   if (session !== startedForSession) return
   if (!idToken) {
     const stillSignedIn = await authAdapter.getCurrentSession()
@@ -130,7 +130,7 @@ async function resolveOrgSession(root: HTMLElement): Promise<void> {
 }
 
 async function refreshOrgMembers(root: HTMLElement): Promise<void> {
-  const idToken = await authAdapter.getValidIdToken()
+  const idToken = await authAdapter.getValidToken()
   if (!idToken) return
   const members = await fetchOrgMembers(idToken)
   if (members) orgMembers = members
@@ -138,7 +138,7 @@ async function refreshOrgMembers(root: HTMLElement): Promise<void> {
 }
 
 async function refreshOrgPrompts(root: HTMLElement): Promise<void> {
-  const idToken = await authAdapter.getValidIdToken()
+  const idToken = await authAdapter.getValidToken()
   if (!idToken) return
   const result = await loadOrgPrompts(idToken)
   orgPrompts = result.prompts
@@ -147,7 +147,7 @@ async function refreshOrgPrompts(root: HTMLElement): Promise<void> {
 }
 
 async function refreshOrgUsage(root: HTMLElement): Promise<void> {
-  const idToken = await authAdapter.getValidIdToken()
+  const idToken = await authAdapter.getValidToken()
   if (!idToken) return
   const snapshots = await fetchOrgUsage(idToken)
   if (snapshots) orgUsageSnapshots = snapshots
@@ -155,7 +155,7 @@ async function refreshOrgUsage(root: HTMLElement): Promise<void> {
 }
 
 async function reportCurrentUsage(): Promise<void> {
-  const idToken = await authAdapter.getValidIdToken()
+  const idToken = await authAdapter.getValidToken()
   if (!idToken) return
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
@@ -405,7 +405,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         await refresh(root)
       },
       onOnboardingSubmit: async (data: { orgName: string; initialMemberEmails: string[] }) => {
-        const idToken = await authAdapter.getValidIdToken()
+        const idToken = await authAdapter.getValidToken()
         if (!idToken) {
           announce('Please sign in again to set up your organisation.')
           view = { mode: 'list' }
@@ -448,48 +448,48 @@ async function refresh(root: HTMLElement): Promise<void> {
         void refresh(root)
       },
       onApproveMember: async (email: string) => {
-        const idToken = await authAdapter.getValidIdToken()
+        const idToken = await authAdapter.getValidToken()
         if (!idToken) return
         await approveOrgMember(idToken, email)
         await refreshOrgMembers(root)
       },
       onRemoveMember: async (email: string) => {
-        const idToken = await authAdapter.getValidIdToken()
+        const idToken = await authAdapter.getValidToken()
         if (!idToken) return
         const result = await removeOrgMember(idToken, email)
         if (!result.ok) announce(result.error)
         await refreshOrgMembers(root)
       },
       onPromoteMember: async (email: string) => {
-        const idToken = await authAdapter.getValidIdToken()
+        const idToken = await authAdapter.getValidToken()
         if (!idToken) return
         const result = await setOrgMemberRole(idToken, email, 'director')
         if (!result.ok) announce(result.error)
         await refreshOrgMembers(root)
       },
       onDemoteMember: async (email: string) => {
-        const idToken = await authAdapter.getValidIdToken()
+        const idToken = await authAdapter.getValidToken()
         if (!idToken) return
         const result = await setOrgMemberRole(idToken, email, 'member')
         if (!result.ok) announce(result.error)
         await refreshOrgMembers(root)
       },
       onAddMember: async (email: string) => {
-        const idToken = await authAdapter.getValidIdToken()
+        const idToken = await authAdapter.getValidToken()
         if (!idToken) return
         const added = await addOrgMember(idToken, email)
         manageOrgAddError = added ? null : 'Something went wrong adding that member. Check the console for details.'
         await refreshOrgMembers(root)
       },
       onCreatePrompt: async (data) => {
-        const idToken = await authAdapter.getValidIdToken()
+        const idToken = await authAdapter.getValidToken()
         if (!idToken) return
         const created = await createOrgPrompt(idToken, data)
         promptFormError = created ? null : 'Something went wrong adding that prompt. Check the console for details.'
         await refreshOrgPrompts(root)
       },
       onUpdatePrompt: async (id, data) => {
-        const idToken = await authAdapter.getValidIdToken()
+        const idToken = await authAdapter.getValidToken()
         if (!idToken) return
         const updated = await updateOrgPrompt(idToken, id, data)
         if (updated) editingPromptId = null
@@ -497,7 +497,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         await refreshOrgPrompts(root)
       },
       onDeletePrompt: async (id: string) => {
-        const idToken = await authAdapter.getValidIdToken()
+        const idToken = await authAdapter.getValidToken()
         if (!idToken) return
         await deleteOrgPrompt(idToken, id)
         await refreshOrgPrompts(root)
