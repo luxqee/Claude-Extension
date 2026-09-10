@@ -236,7 +236,7 @@ export function renderApp(
   const addButton = document.createElement('button')
   addButton.type = 'button'
   addButton.className = 'add-button'
-  addButton.textContent = 'Add tool'
+  addButton.textContent = '+ Add tool'
   addButton.addEventListener('click', context.onAddClick)
   headerActions.appendChild(addButton)
   header.appendChild(headerActions)
