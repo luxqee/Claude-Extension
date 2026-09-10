@@ -17,6 +17,8 @@ export interface SettingsPanelContext {
   onSignOut: () => void
   orgSession: OrgSessionState | null
   onOpenManageOrg: () => void
+  /** Withdraw from the current org (member) or cancel a pending request. */
+  onLeaveOrg: () => void
 }
 
 export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement {
@@ -53,13 +55,36 @@ export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement 
     signOutButton.addEventListener('click', context.onSignOut)
     authSection.appendChild(signOutButton)
 
-    if (context.orgSession?.state === 'active' && context.orgSession.role === 'director') {
+    const leaveButton = (label: string): HTMLElement => {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.className = 'settings-action-button'
+      b.textContent = label
+      b.addEventListener('click', context.onLeaveOrg)
+      return b
+    }
+    const orgHint = (text: string): HTMLElement => {
+      const p = document.createElement('p')
+      p.className = 'settings-hint'
+      p.textContent = text
+      return p
+    }
+
+    const org = context.orgSession
+    if (org?.state === 'active' && org.role === 'director') {
       const manageButton = document.createElement('button')
       manageButton.type = 'button'
       manageButton.className = 'settings-action-button'
       manageButton.textContent = 'Manage Organisation'
       manageButton.addEventListener('click', context.onOpenManageOrg)
       authSection.appendChild(manageButton)
+      authSection.appendChild(leaveButton('Leave organisation'))
+    } else if (org?.state === 'active') {
+      authSection.appendChild(orgHint(`Member of ${org.org.name}.`))
+      authSection.appendChild(leaveButton('Leave organisation'))
+    } else if (org?.state === 'pending') {
+      authSection.appendChild(orgHint(`Waiting for approval from ${org.org.name}.`))
+      authSection.appendChild(leaveButton('Cancel request'))
     } else if (context.orgResolving) {
       authSection.appendChild(loadingLine('Checking organisation...'))
     }

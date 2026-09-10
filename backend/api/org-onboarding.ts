@@ -3,6 +3,7 @@ import { neon } from '@neondatabase/serverless'
 import { resolveEmail } from '../lib/resolve-email.js'
 import { resolveOrgId, isPublicEmailDomain, type OrgRecord } from '../lib/resolve-org.js'
 import { resolveSessionState, type OrgMemberRecord } from '../lib/resolve-session.js'
+import { checkRateLimit, clientIp } from '../lib/rate-limit.js'
 
 const sql = neon(process.env.DATABASE_URL ?? '')
 
@@ -33,7 +34,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return
   }
 
-  const body = req.body as { orgName?: unknown; initialMemberEmails?: unknown }
+  // Tight: creating organisations is rare and each one is a lasting side
+  // effect. Key on both IP and email so neither axis alone can spray.
+  const rlKey = `org-onboarding:${clientIp(req.headers['x-forwarded-for'])}:${email.toLowerCase()}`
+  const limit = await checkRateLimit(sql, rlKey, 6, 60)
+  if (!limit.ok) {
+    res.setHeader('Retry-After', String(limit.retryAfter))
+    res.status(429).json({ error: 'too many requests' })
+    return
+  }
+
+  const body = (req.body ?? {}) as { orgName?: unknown; initialMemberEmails?: unknown }
   if (!isNonEmptyString(body.orgName)) {
     res.status(400).json({ error: 'orgName is required' })
     return

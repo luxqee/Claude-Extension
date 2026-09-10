@@ -18,9 +18,19 @@ vi.mock('../../lib/resolve-email.js', () => ({
 
 vi.mock('../../lib/verify-clerk.js', () => ({ verifyClerkToken: mockVerifyClerkToken }))
 
+// The handler rate-limits per IP before anything else; stub it so the test
+// exercises only the body handling and needs no database.
+vi.mock('../../lib/rate-limit.js', () => ({
+  checkRateLimit: async () => ({ ok: true, retryAfter: 0 }),
+  clientIp: () => 'test-ip',
+}))
+
 async function loadHandler() {
   vi.resetModules()
   process.env.SESSION_JWT_SECRET = 'session-handler-unit-secret'
+  // neon() throws at import time without a connection string, even though
+  // this test never issues a query (rate-limit is mocked above).
+  process.env.DATABASE_URL = 'postgres://user:pass@localhost:5432/db'
   return (await import('./session.js')).default
 }
 

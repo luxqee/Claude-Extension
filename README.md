@@ -76,9 +76,11 @@ the same ID and the same single OAuth redirect URI.
 ### 1. Backend (Vercel + Neon)
 
 1. Create a **Neon** Postgres database. Run `backend/schema.sql` against
-   it once (Neon SQL Editor, or `psql "$DATABASE_URL" -f backend/schema.sql`).
-   The `DATABASE_URL` role must be a plain non-superuser without
-   `BYPASSRLS`, or row-level security is silently defeated.
+   it (Neon SQL Editor, or `psql "$DATABASE_URL" -f backend/schema.sql`).
+   The whole file is idempotent — **re-run it after pulling** so new
+   tables (most recently `rate_limits`) get created. The `DATABASE_URL`
+   role must be a plain non-superuser without `BYPASSRLS`, or row-level
+   security is silently defeated.
 2. Create a **Vercel** project from this repo with **Root Directory =
    `backend`**. It deploys on every push to `main`.
 3. Set these environment variables in the Vercel project
@@ -168,6 +170,8 @@ shared prompt list on top:
   land in "waiting for approval" until an admin approves them.
 - **Public email domains** (`gmail.com`, `outlook.com`, …) never
   auto-join — each such sign-in starts its own separate organisation.
+- **Leaving:** a member (or a pending invitee) can leave / cancel from
+  Settings at any time. The last admin must promote someone else first.
 - **Admins** get **Manage Organisation** in Settings: approve/remove
   members, add anyone by email (they land as **pending** for one-click
   approval), promote/demote admins, create/edit/delete
@@ -183,7 +187,9 @@ re-derives the caller's email from their verified identity token and
 re-checks their own membership row on every request. The client cannot
 assert its own email, org, role, or admin status. Cross-organisation
 isolation is enforced by Postgres row-level security
-(`FORCE ROW LEVEL SECURITY`), not just by `WHERE` clauses.
+(`FORCE ROW LEVEL SECURITY`), not just by `WHERE` clauses. Sign-in,
+onboarding, prompt-run and usage-report calls are rate-limited per
+caller (fixed window, in the `rate_limits` table — no extra service).
 
 ---
 

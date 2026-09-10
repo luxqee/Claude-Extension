@@ -284,3 +284,17 @@ drop policy if exists org_daily_runs_delete on org_daily_runs;
 create policy org_daily_runs_delete on org_daily_runs
   for delete
   using (org_id = current_setting('app.current_org_id', true)::uuid);
+
+-- ===========================================================================
+-- Rate limiting (fixed-window). Not org-scoped, so no RLS -- one row per
+-- (route, caller) bucket, rewritten in place each window. Safe to re-run.
+-- Migrating in place: just run this block.
+-- ===========================================================================
+
+create table if not exists rate_limits (
+  bucket text primary key,
+  window_start timestamptz not null default now(),
+  count integer not null default 0
+);
+
+create index if not exists rate_limits_window_start_idx on rate_limits (window_start);

@@ -40,7 +40,7 @@ import {
   type OrgPrompt,
   type OrgPromptsResult,
 } from '../shared/org-prompts'
-import { fetchOrgSession, submitOrgOnboarding, type OrgSessionState } from '../shared/org-session'
+import { fetchOrgSession, submitOrgOnboarding, leaveOrg, type OrgSessionState } from '../shared/org-session'
 import {
   fetchOrgMembers,
   approveOrgMember,
@@ -687,6 +687,39 @@ async function refresh(root: HTMLElement): Promise<void> {
         promptFormError = null
         view = { mode: 'settings' }
         void refresh(root)
+      },
+      onLeaveOrg: async () => {
+        const leaving = orgSession
+        const isPending = leaving?.state === 'pending'
+        const name = leaving?.state === 'active' || leaving?.state === 'pending' ? leaving.org.name : 'this organisation'
+        const message = isPending
+          ? `Cancel your request to join ${name}?`
+          : `Leave ${name}? You'll lose access to its shared prompts until you're re-added.`
+        if (!window.confirm(message)) return
+
+        const idToken = await authAdapter.getValidToken()
+        if (!idToken) {
+          announce('Please sign in again.')
+          return
+        }
+        const result = await leaveOrg(idToken)
+        if (result === 'last_admin') {
+          announce('You are the last admin -- promote someone else before leaving.')
+          return
+        }
+        if (result === 'error') {
+          announce('Could not leave the organisation. Check the console for details.')
+          return
+        }
+        // 'left' or 'not_in_org' -- either way the caller has no membership.
+        orgSession = null
+        orgPrompts = []
+        teamPrompts = { orgName: null, tabs: [], prompts: [] }
+        await clearCachedOrgPrompts()
+        stopUsageReportTimer()
+        announce(isPending ? 'Request cancelled.' : `Left ${name}.`)
+        await refresh(root)
+        void resolveOrgSession(root)
       },
       onApproveMember: async (email: string) => {
         const idToken = await authAdapter.getValidToken()

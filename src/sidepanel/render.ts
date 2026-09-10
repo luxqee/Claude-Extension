@@ -80,6 +80,7 @@ export interface RenderContext {
   onOnboardingSubmit: (data: { orgName: string; initialMemberEmails: string[] }) => void
   onOnboardingCancel: () => void
   onOpenManageOrg: () => void
+  onLeaveOrg: () => void
   onManageOrgBack: () => void
   onApproveMember: (email: string) => void
   onRemoveMember: (email: string) => void
@@ -191,6 +192,7 @@ export function renderApp(
         onSignOut: context.onSignOut,
         orgSession,
         onOpenManageOrg: context.onOpenManageOrg,
+        onLeaveOrg: context.onLeaveOrg,
       }),
     )
     return

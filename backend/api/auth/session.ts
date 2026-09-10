@@ -1,7 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { neon } from '@neondatabase/serverless'
 import { signSessionToken } from '../../lib/jwt.js'
 import { extractBearerToken, verifyExternalToken } from '../../lib/resolve-email.js'
 import { verifyClerkToken } from '../../lib/verify-clerk.js'
+import { checkRateLimit, clientIp } from '../../lib/rate-limit.js'
+
+const sql = neon(process.env.DATABASE_URL ?? '')
 
 // Mints a backend session token (14-day HS256 JWT) from a verified
 // identity. Two ways in:
@@ -70,6 +74,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   if (!SESSION_JWT_SECRET) {
     console.error('[auth/session] SESSION_JWT_SECRET is not configured')
     res.status(500).json({ error: 'session tokens are not configured' })
+    return
+  }
+
+  // Per-IP: this is the pre-auth entry point (it verifies the token itself),
+  // so there is no email to key on yet.
+  const limit = await checkRateLimit(sql, `auth-session:${clientIp(req.headers['x-forwarded-for'])}`, 30, 60)
+  if (!limit.ok) {
+    res.setHeader('Retry-After', String(limit.retryAfter))
+    res.status(429).json({ error: 'too many requests' })
     return
   }
 

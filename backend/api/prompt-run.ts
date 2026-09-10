@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { neon } from '@neondatabase/serverless'
 import { resolveEmail } from '../lib/resolve-email.js'
+import { checkRateLimit } from '../lib/rate-limit.js'
 
 const sql = neon(process.env.DATABASE_URL ?? '')
 
@@ -23,7 +24,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return
   }
 
-  const body = req.body as { promptId?: unknown }
+  const limit = await checkRateLimit(sql, `prompt-run:${email.toLowerCase()}`, 120, 60)
+  if (!limit.ok) {
+    res.setHeader('Retry-After', String(limit.retryAfter))
+    res.status(429).json({ error: 'too many requests' })
+    return
+  }
+
+  const body = (req.body ?? {}) as { promptId?: unknown }
   if (typeof body.promptId !== 'string' || body.promptId.length === 0) {
     res.status(400).json({ error: 'promptId is required' })
     return

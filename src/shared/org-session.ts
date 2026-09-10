@@ -91,6 +91,28 @@ export async function fetchOrgSession(idToken: string): Promise<OrgSessionState 
   return parseOrgSessionResponse(body)
 }
 
+export type LeaveOrgResult = 'left' | 'last_admin' | 'not_in_org' | 'error'
+
+/** Withdraws the caller from their current organisation (member or pending
+ * invitee). The last active admin gets `'last_admin'` and stays put. */
+export async function leaveOrg(idToken: string): Promise<LeaveOrgResult> {
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}/api/org-session`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${idToken}` },
+    })
+  } catch (error) {
+    console.error('[Claude Tools] failed to leave organisation', error)
+    return 'error'
+  }
+  if (response.status === 204) return 'left'
+  if (response.status === 400) return 'last_admin'
+  if (response.status === 404) return 'not_in_org'
+  console.error('[Claude Tools] org leave returned status', response.status)
+  return 'error'
+}
+
 export async function submitOrgOnboarding(
   idToken: string,
   orgName: string,
