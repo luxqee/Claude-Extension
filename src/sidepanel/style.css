@@ -868,8 +868,15 @@ h1, h2, h3 {
 }
 
 .tab-chip-add {
-  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
   color: var(--text-muted);
+}
+
+.tab-chip-add svg {
+  display: block;
 }
 
 .tab-strip-manage {

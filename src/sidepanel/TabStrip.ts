@@ -74,7 +74,8 @@ export function renderTabStrip(tabs: ToolTab[], context: TabStripContext): HTMLE
   const addButton = document.createElement('button')
   addButton.type = 'button'
   addButton.className = 'tab-chip tab-chip-add'
-  addButton.textContent = '+'
+  addButton.innerHTML =
+    '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9"/></svg>'
   addButton.setAttribute('aria-label', 'Add tab')
   addButton.addEventListener('click', context.onAdd)
   list.appendChild(addButton)

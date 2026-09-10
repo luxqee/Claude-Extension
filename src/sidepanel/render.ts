@@ -278,8 +278,8 @@ export function renderApp(
     empty.className = 'empty-state'
     empty.textContent =
       tabState.tabs.length > 0
-        ? 'No tools in this tab yet. Click "Add tool" to create one.'
-        : 'No tools yet. Click "Add tool" to create your first one.'
+        ? 'No tools in this tab yet. Add your first one with the button above.'
+        : 'No tools yet. Add your first one with the button above.'
     root.appendChild(empty)
   } else {
   const list = document.createElement('ul')
