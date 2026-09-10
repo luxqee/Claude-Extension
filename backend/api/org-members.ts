@@ -60,12 +60,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const targetEmail = body.email.trim()
 
     if (body.action === 'add') {
+      // Added as `pending`, then approved. A director adding an arbitrary
+      // address must not be able to flip a stranger straight to `active`
+      // (that would expose the stranger's reported usage / run counts to
+      // this org the moment they first sign in). DO NOTHING on conflict so
+      // an existing active member is never silently disturbed and a
+      // previously-approved member is not knocked back to pending.
       await sql.transaction([
         sql`SELECT set_config('app.current_org_id', ${orgId}, true)`,
         sql`
           INSERT INTO org_members (org_id, email, role, status, invited_by)
-          VALUES (${orgId}, ${targetEmail.toLowerCase()}, 'member', 'active', ${callerEmail})
-          ON CONFLICT (org_id, lower(email)) DO UPDATE SET status = 'active'
+          VALUES (${orgId}, ${targetEmail.toLowerCase()}, 'member', 'pending', ${callerEmail})
+          ON CONFLICT (org_id, lower(email)) DO NOTHING
         `,
       ])
       res.status(204).end()

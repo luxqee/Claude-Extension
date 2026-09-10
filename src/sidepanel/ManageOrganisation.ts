@@ -140,6 +140,10 @@ function renderMembers(state: ManageOrgState, context: ManageOrganisationContext
     addInput.value = ''
   })
   addSection.appendChild(addForm)
+  const addHint = document.createElement('p')
+  addHint.className = 'settings-hint'
+  addHint.textContent = 'Added people appear as Pending until you approve them.'
+  addSection.appendChild(addHint)
   if (state.addError) {
     const error = document.createElement('p')
     error.className = 'settings-error'

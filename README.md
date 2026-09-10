@@ -169,7 +169,8 @@ shared prompt list on top:
 - **Public email domains** (`gmail.com`, `outlook.com`, …) never
   auto-join — each such sign-in starts its own separate organisation.
 - **Admins** get **Manage Organisation** in Settings: approve/remove
-  members, add anyone by email, promote/demote admins, create/edit/delete
+  members, add anyone by email (they land as **pending** for one-click
+  approval), promote/demote admins, create/edit/delete
   shared prompts and tabs, and see per-member usage and prompt-run
   analytics. An organisation can never drop to zero admins.
 - **Usage reporting:** while signed in, an approved member's
