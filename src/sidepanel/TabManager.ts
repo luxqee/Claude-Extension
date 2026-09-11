@@ -79,29 +79,54 @@ export function renderTabManager(tabs: ToolTab[], context: TabManagerContext): H
       context.onReorder(moveInList(ids, draggedId, tab.id, after ? 'after' : 'before'))
     })
 
-    const label = document.createElement('input')
-    label.type = 'text'
-    label.className = 'tab-manager-name'
-    label.value = joinTabLabel(tab.emoji, tab.name)
-    label.setAttribute('aria-label', `Name for ${tab.name} (start with an emoji to set an icon)`)
-
-    function commit(): void {
-      const { emoji, name } = splitTabLabel(label.value)
-      if (name.length === 0) {
-        label.value = joinTabLabel(tab.emoji, tab.name)
-        return
-      }
-      if (name === tab.name && emoji === (tab.emoji ?? null)) return
-      context.onRename(tab.id, name, emoji)
+    // Shown as the exact same .tab-chip button as the tab strip itself --
+    // click it to rename in place; only while editing does it become a
+    // text input.
+    function makeChip(): HTMLButtonElement {
+      const chip = document.createElement('button')
+      chip.type = 'button'
+      chip.className = 'tab-chip'
+      chip.textContent = joinTabLabel(tab.emoji, tab.name)
+      chip.setAttribute('aria-label', `Rename ${tab.name}`)
+      chip.addEventListener('click', () => {
+        const input = makeInput()
+        chip.replaceWith(input)
+        input.focus()
+        input.select()
+      })
+      return chip
     }
-    label.addEventListener('blur', commit)
-    label.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        ;(e.target as HTMLInputElement).blur()
+
+    function makeInput(): HTMLInputElement {
+      const input = document.createElement('input')
+      input.type = 'text'
+      input.className = 'tab-manager-name'
+      input.value = joinTabLabel(tab.emoji, tab.name)
+      input.setAttribute('aria-label', `Name for ${tab.name} (start with an emoji to set an icon)`)
+
+      function commit(): void {
+        const { emoji, name } = splitTabLabel(input.value)
+        if (name.length === 0 || (name === tab.name && emoji === (tab.emoji ?? null))) {
+          input.replaceWith(makeChip())
+          return
+        }
+        context.onRename(tab.id, name, emoji)
       }
-    })
-    row.appendChild(label)
+      input.addEventListener('blur', commit)
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          input.blur()
+        } else if (e.key === 'Escape') {
+          e.preventDefault()
+          input.value = joinTabLabel(tab.emoji, tab.name)
+          input.blur()
+        }
+      })
+      return input
+    }
+
+    row.appendChild(makeChip())
 
     const count = context.buttonCountByTab[tab.id] ?? 0
     const meta = document.createElement('span')

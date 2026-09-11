@@ -210,30 +210,58 @@ function renderSharedTabs(state: ManageOrgState, context: ManageOrganisationCont
       context.onReorderOrgTabs(moveInList(ids, draggedId, tab.id, after ? 'after' : 'before'))
     })
 
-    const label = document.createElement('input')
-    label.type = 'text'
-    label.className = 'tab-manager-name'
-    label.value = joinTabLabel(tab.emoji, tab.name)
-    label.setAttribute('aria-label', `Name for ${tab.name} (start with an emoji to set an icon)`)
-
-    function commit(): void {
-      const { emoji, name } = splitTabLabel(label.value)
-      if (name.length === 0) {
-        label.value = joinTabLabel(tab.emoji, tab.name)
-        return
-      }
-      if (name === tab.name && emoji === (tab.emoji ?? null)) return
-      context.onRenameOrgTab(tab.id, name, emoji)
+    // Shown as the exact same .tab-chip button the normal tab strip uses
+    // (TabStrip.ts) -- click it to rename in place, same as clicking a
+    // pill elsewhere in this app opens an edit affordance. Only while
+    // actively being edited does it become a text input.
+    function makeChip(): HTMLButtonElement {
+      const chip = document.createElement('button')
+      chip.type = 'button'
+      chip.className = 'tab-chip'
+      chip.textContent = joinTabLabel(tab.emoji, tab.name)
+      chip.setAttribute('aria-label', `Rename ${tab.name}`)
+      chip.addEventListener('click', () => {
+        const input = makeInput()
+        chip.replaceWith(input)
+        input.focus()
+        input.select()
+      })
+      return chip
     }
-    label.addEventListener('blur', commit)
-    label.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        ;(e.target as HTMLInputElement).blur()
-      }
-    })
 
-    row.appendChild(label)
+    function makeInput(): HTMLInputElement {
+      const input = document.createElement('input')
+      input.type = 'text'
+      input.className = 'tab-manager-name'
+      input.value = joinTabLabel(tab.emoji, tab.name)
+      input.setAttribute('aria-label', `Name for ${tab.name} (start with an emoji to set an icon)`)
+
+      function commit(): void {
+        const { emoji, name } = splitTabLabel(input.value)
+        if (name.length === 0 || (name === tab.name && emoji === (tab.emoji ?? null))) {
+          // No real change (or emptied out) -- revert to the chip locally;
+          // a real rename triggers onRenameOrgTab, which reloads org data
+          // and rebuilds this whole row from fresh state anyway.
+          input.replaceWith(makeChip())
+          return
+        }
+        context.onRenameOrgTab(tab.id, name, emoji)
+      }
+      input.addEventListener('blur', commit)
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          input.blur()
+        } else if (e.key === 'Escape') {
+          e.preventDefault()
+          input.value = joinTabLabel(tab.emoji, tab.name)
+          input.blur()
+        }
+      })
+      return input
+    }
+
+    row.appendChild(makeChip())
 
     const controls = document.createElement('div')
     controls.className = 'tab-manager-controls'
