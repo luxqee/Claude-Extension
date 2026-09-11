@@ -4,18 +4,12 @@ import { resolveEmail } from '../lib/resolve-email.js'
 import { resolveOrgId, isPublicEmailDomain, type OrgRecord } from '../lib/resolve-org.js'
 import { resolveSessionState, type OrgMemberRecord } from '../lib/resolve-session.js'
 import { checkRateLimit, clientIp } from '../lib/rate-limit.js'
+import { resolveAnyMembership } from '../lib/resolve-membership.js'
 
 const sql = neon(process.env.DATABASE_URL ?? '')
 
 interface OrgRow extends OrgRecord {
   name: string
-}
-
-interface MemberRow {
-  org_id: string
-  email: string
-  role: 'director' | 'member'
-  status: 'pending' | 'active'
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -62,21 +56,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const domain = email.slice(atIndex + 1).toLowerCase()
 
   try {
-    const [orgs, memberRows] = await Promise.all([
+    const [orgs, membership] = await Promise.all([
       sql`SELECT id, name, domain FROM organizations` as unknown as Promise<OrgRow[]>,
-      // Oldest membership wins, mirroring org-session.ts so this "are you
-      // already in an org?" check resolves to the same row the session does.
-      sql`SELECT org_id, email, role, status FROM org_members WHERE lower(email) = lower(${email}) ORDER BY created_at ASC LIMIT 1` as unknown as Promise<
-        MemberRow[]
-      >,
+      // Shared with org-session.ts so this "are you already in an org?"
+      // check resolves to the exact same org the session does.
+      resolveAnyMembership(sql, email),
     ])
-    const existingMember: OrgMemberRecord | null = memberRows[0]
-      ? {
-          orgId: memberRows[0].org_id,
-          email: memberRows[0].email,
-          role: memberRows[0].role,
-          status: memberRows[0].status,
-        }
+    const existingMember: OrgMemberRecord | null = membership
+      ? { orgId: membership.orgId, email, role: membership.role, status: membership.status }
       : null
 
     if (resolveSessionState(email, existingMember, orgs).state !== 'needs_onboarding') {

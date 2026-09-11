@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { neon } from '@neondatabase/serverless'
 import { resolveEmail } from '../lib/resolve-email.js'
 import { checkRateLimit } from '../lib/rate-limit.js'
+import { resolveActiveMembership } from '../lib/resolve-membership.js'
 
 const sql = neon(process.env.DATABASE_URL ?? '')
 
@@ -39,13 +40,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const promptId = body.promptId
 
   try {
-    // Oldest active membership wins, mirroring org-session / usage-report.
-    const memberRows = (await sql`
-      SELECT org_id FROM org_members
-      WHERE lower(email) = lower(${email}) AND status = 'active'
-      ORDER BY created_at ASC LIMIT 1
-    `) as { org_id: string }[]
-    const orgId = memberRows[0]?.org_id
+    const membership = await resolveActiveMembership(sql, email)
+    const orgId = membership?.orgId
     if (!orgId) {
       res.status(403).json({ error: 'not an active organization member' })
       return

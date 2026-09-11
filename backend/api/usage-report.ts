@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { neon } from '@neondatabase/serverless'
 import { resolveEmail } from '../lib/resolve-email.js'
 import { checkRateLimit } from '../lib/rate-limit.js'
+import { resolveActiveMembership } from '../lib/resolve-membership.js'
 
 const sql = neon(process.env.DATABASE_URL ?? '')
 
@@ -54,26 +55,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   try {
-    // Oldest active membership wins, matching org-session.ts: a director of
-    // another org can add any email as an active member, and picking the
-    // newest row would let that redirect an existing member's usage reports
-    // into the newly-added org.
-    const memberRows = (await sql`
-      SELECT org_id FROM org_members
-      WHERE lower(email) = lower(${email}) AND status = 'active'
-      ORDER BY created_at ASC LIMIT 1
-    `) as { org_id: string }[]
-    const membership = memberRows[0]
+    const membership = await resolveActiveMembership(sql, email)
     if (!membership) {
       res.status(403).json({ error: 'not an active organization member' })
       return
     }
 
     await sql.transaction([
-      sql`SELECT set_config('app.current_org_id', ${membership.org_id}, true)`,
+      sql`SELECT set_config('app.current_org_id', ${membership.orgId}, true)`,
       sql`
         INSERT INTO usage_snapshots (org_id, email, session_percent, weekly_percent, spend_percent, updated_at)
-        VALUES (${membership.org_id}, ${email.toLowerCase()}, ${sessionPercent}, ${weeklyPercent}, ${spendPercent}, now())
+        VALUES (${membership.orgId}, ${email.toLowerCase()}, ${sessionPercent}, ${weeklyPercent}, ${spendPercent}, now())
         ON CONFLICT (org_id, email) DO UPDATE SET
           session_percent = excluded.session_percent,
           weekly_percent = excluded.weekly_percent,

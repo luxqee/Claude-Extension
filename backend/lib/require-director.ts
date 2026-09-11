@@ -1,4 +1,5 @@
 import type { NeonQueryFunction } from '@neondatabase/serverless'
+import { resolveActiveMembership } from './resolve-membership.js'
 
 // `ReturnType<typeof neon>` resolves neon()'s defaulted generic params
 // (ArrayMode/FullResults) to their `boolean` constraint rather than their
@@ -14,15 +15,11 @@ export interface DirectorContext {
 }
 
 export async function resolveDirectorContext(sql: Sql, email: string): Promise<DirectorContext | null> {
-  // Oldest directorship wins, matching org-session.ts's membership
-  // resolution. These two must agree: if a director's session resolves to
-  // org A but their management writes went to org B, every director action
-  // (prompt CRUD, roster changes) would silently target an org other than
-  // the one the UI is showing them.
-  const rows = (await sql`
-    SELECT org_id FROM org_members
-    WHERE lower(email) = lower(${email}) AND role = 'director' AND status = 'active'
-    ORDER BY created_at ASC LIMIT 1
-  `) as { org_id: string }[]
-  return rows[0] ? { orgId: rows[0].org_id, email } : null
+  // Delegates to resolve-membership.ts's shared ranking (active director
+  // row wins over any other active row) so every other endpoint that reads
+  // resolveActiveMembership resolves to the exact same org as this one --
+  // see the comment there for why that has to be one function, not one
+  // query duplicated per file.
+  const membership = await resolveActiveMembership(sql, email)
+  return membership && membership.role === 'director' ? { orgId: membership.orgId, email } : null
 }

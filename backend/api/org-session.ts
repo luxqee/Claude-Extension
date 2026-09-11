@@ -4,18 +4,12 @@ import { resolveEmail } from '../lib/resolve-email.js'
 import { type OrgRecord } from '../lib/resolve-org.js'
 import { resolveSessionState, type OrgMemberRecord } from '../lib/resolve-session.js'
 import { isLastActiveDirector } from '../lib/last-director-guard.js'
+import { resolveAnyMembership } from '../lib/resolve-membership.js'
 
 const sql = neon(process.env.DATABASE_URL ?? '')
 
 interface OrgRow extends OrgRecord {
   name: string
-}
-
-interface MemberRow {
-  org_id: string
-  email: string
-  role: 'director' | 'member'
-  status: 'pending' | 'active'
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
@@ -31,18 +25,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   // DELETE = "leave / withdraw from my current organisation". Drops the
-  // caller's own membership row -- the one their session resolves to
-  // (oldest). A member or a pending invitee can always leave; the last
-  // active director cannot (they must promote someone first), matching the
-  // guard on org-members remove/demote.
+  // caller's own membership row -- the one their session resolves to (see
+  // resolve-membership.ts). A member or a pending invitee can always leave;
+  // the last active director cannot (they must promote someone first),
+  // matching the guard on org-members remove/demote.
   if (req.method === 'DELETE') {
     try {
-      const rows = (await sql`
-        SELECT org_id, role, status FROM org_members
-        WHERE lower(email) = lower(${email})
-        ORDER BY created_at ASC LIMIT 1
-      `) as { org_id: string; role: 'director' | 'member'; status: 'pending' | 'active' }[]
-      const membership = rows[0]
+      const membership = await resolveAnyMembership(sql, email)
       if (!membership) {
         res.status(404).json({ error: 'not in an organisation' })
         return
@@ -51,7 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       if (membership.role === 'director' && membership.status === 'active') {
         const others = (await sql`
           SELECT count(*)::int AS count FROM org_members
-          WHERE org_id = ${membership.org_id} AND role = 'director' AND status = 'active'
+          WHERE org_id = ${membership.orgId} AND role = 'director' AND status = 'active'
             AND lower(email) != lower(${email})
         `) as { count: number }[]
         if (isLastActiveDirector({ role: 'director', status: 'active' }, others[0]?.count ?? 0)) {
@@ -61,8 +50,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       }
 
       await sql.transaction([
-        sql`SELECT set_config('app.current_org_id', ${membership.org_id}, true)`,
-        sql`DELETE FROM org_members WHERE org_id = ${membership.org_id} AND lower(email) = lower(${email})`,
+        sql`SELECT set_config('app.current_org_id', ${membership.orgId}, true)`,
+        sql`DELETE FROM org_members WHERE org_id = ${membership.orgId} AND lower(email) = lower(${email})`,
       ])
       res.status(204).end()
     } catch (error) {
@@ -73,24 +62,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   try {
-    const [orgs, memberRows] = await Promise.all([
+    const [orgs, membership] = await Promise.all([
       sql`SELECT id, name, domain FROM organizations` as unknown as Promise<OrgRow[]>,
-      // Oldest membership wins. Any director can add any email at any
-      // domain as an active member (by design -- cross-domain membership is
-      // supported), so picking the newest row would let a director of org X
-      // hijack the session of someone who already belongs to org Y.
-      sql`SELECT org_id, email, role, status FROM org_members WHERE lower(email) = lower(${email}) ORDER BY created_at ASC LIMIT 1` as unknown as Promise<
-        MemberRow[]
-      >,
+      // Any director can add any email at any domain as an active member
+      // (by design -- cross-domain membership is supported), so this must
+      // rank an active director row first: picking the newest row would let
+      // a director of org X hijack the session of someone who already
+      // belongs to org Y, and picking the oldest row of any role/status
+      // would show a director someone ELSE's older, unrelated membership
+      // instead of the org they actually manage.
+      resolveAnyMembership(sql, email),
     ])
 
-    const existingMember: OrgMemberRecord | null = memberRows[0]
-      ? {
-          orgId: memberRows[0].org_id,
-          email: memberRows[0].email,
-          role: memberRows[0].role,
-          status: memberRows[0].status,
-        }
+    const existingMember: OrgMemberRecord | null = membership
+      ? { orgId: membership.orgId, email, role: membership.role, status: membership.status }
       : null
 
     const resolution = resolveSessionState(email, existingMember, orgs)

@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { neon } from '@neondatabase/serverless'
 import { resolveEmail } from '../lib/resolve-email.js'
 import { resolveDirectorContext } from '../lib/require-director.js'
+import { resolveActiveMembership } from '../lib/resolve-membership.js'
 import { nextSortOrder } from '../lib/org-tab-helpers.js'
 
 const sql = neon(process.env.DATABASE_URL ?? '')
@@ -99,13 +100,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   try {
     // Resolve the caller's org from their real membership, NOT from
-    // email-domain matching -- mirrors org-session.ts, oldest-membership-wins.
-    const memberRows = (await sql`
-      SELECT org_id FROM org_members
-      WHERE lower(email) = lower(${email}) AND status = 'active'
-      ORDER BY created_at ASC LIMIT 1
-    `) as { org_id: string }[]
-    const orgId = memberRows[0]?.org_id
+    // email-domain matching. Shared with every other endpoint (see
+    // resolve-membership.ts) so a director always sees the same org here
+    // that their Manage Organisation writes go to.
+    const membership = await resolveActiveMembership(sql, email)
+    const orgId = membership?.orgId
 
     if (!orgId) {
       res.status(200).json({ org: null, tabs: [], prompts: [] })
