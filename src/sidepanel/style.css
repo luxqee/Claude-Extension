@@ -933,26 +933,28 @@ h1, h2, h3 {
   box-shadow: 0 3px 0 0 var(--accent);
 }
 
-.tab-manager-emoji {
-  width: 3em;
-  text-align: center;
-  font: inherit;
-  padding: 4px 6px;
-  background: var(--surface-input);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-}
-
+/* Same pill shape as .tab-chip in the normal tab strip, so a shared or
+   personal tab reads as a "tab" here too, not a plain text field. */
 .tab-manager-name {
   flex: 1;
   min-width: 6em;
   font: inherit;
-  padding: 4px 8px;
-  background: var(--surface-input);
+  font-size: 12px;
+  padding: 4px 12px;
+  background: var(--surface-card);
   color: var(--text-primary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: 999px;
+}
+
+.tab-manager-name:hover {
+  background: var(--surface-hover);
+}
+
+.tab-manager-name:focus {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+  outline: none;
 }
 
 .tab-manager-count {
