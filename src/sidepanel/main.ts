@@ -71,6 +71,10 @@ let buttonUsage: ButtonUsageMap = {}
 let orgAnalytics: OrgAnalytics | null = null
 let session: { email: string } | null = null
 let teamPrompts: OrgPromptsResult = { orgName: null, tabs: [], prompts: [] }
+// Which shared tab's prompts the Team section shows. Falls back to the
+// first tab (in TeamSection.ts) if this is null or points at a tab that
+// no longer exists.
+let teamActiveTabId: string | null = null
 let orgSession: OrgSessionState | null = null
 let orgMembers: OrgMember[] = []
 let manageOrgLoading = false
@@ -311,6 +315,7 @@ async function refresh(root: HTMLElement): Promise<void> {
       session,
       orgSession,
       teamPrompts,
+      teamActiveTabId,
       {
         members: orgMembers,
         addError: manageOrgAddError,
@@ -813,6 +818,10 @@ async function refresh(root: HTMLElement): Promise<void> {
       onCancelEditPrompt: () => {
         editingPromptId = null
         promptFormError = null
+        void refresh(root)
+      },
+      onSelectTeamTab: (tabId: string) => {
+        teamActiveTabId = tabId
         void refresh(root)
       },
       onRunTeamPrompt: async (prompt: OrgPrompt) => {

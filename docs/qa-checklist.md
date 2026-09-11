@@ -71,7 +71,7 @@ open a fresh claude.ai tab.
 
 ## 7. Member / pending
 
-- [ ] Approved member sees the Team section with the org's shared prompts, grouped by tab.
+- [ ] Approved member sees the Team section with clickable tab-chip buttons (same style as the personal tab strip) when the org has more than one shared tab; clicking one filters the prompt list to that tab.
 - [ ] Running a team prompt inserts text, **never sends**.
 - [ ] Settings shows "Member of <org>." + **Leave organisation**.
 - [ ] Pending user sees "Waiting for approval from <org>." + **Cancel request**.

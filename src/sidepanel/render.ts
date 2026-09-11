@@ -77,6 +77,7 @@ export interface RenderContext {
   onSignIn: (providerId: ProviderId) => void
   onSignOut: () => void
   onRunTeamPrompt: (prompt: OrgPrompt) => void
+  onSelectTeamTab: (tabId: string) => void
   onOnboardingSubmit: (data: { orgName: string; initialMemberEmails: string[] }) => void
   onOnboardingCancel: () => void
   onOpenManageOrg: () => void
@@ -133,6 +134,7 @@ export function renderApp(
   session: { email: string } | null,
   orgSession: OrgSessionState | null,
   teamPrompts: OrgPromptsResult,
+  teamActiveTabId: string | null,
   manageOrgState: ManageOrgState,
   context: RenderContext,
 ): void {
@@ -327,6 +329,8 @@ export function renderApp(
         teamPrompts.orgName ?? 'Team',
         teamPrompts.tabs,
         teamPrompts.prompts,
+        teamActiveTabId,
+        context.onSelectTeamTab,
         context.onRunTeamPrompt,
       ),
     )

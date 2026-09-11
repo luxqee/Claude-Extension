@@ -29,6 +29,8 @@ export function renderTeamSection(
   orgName: string,
   tabs: OrgTab[],
   prompts: OrgPrompt[],
+  activeTabId: string | null,
+  onSelectTab: (tabId: string) => void,
   onRun: (prompt: OrgPrompt) => void,
 ): HTMLElement {
   const section = document.createElement('div')
@@ -39,39 +41,51 @@ export function renderTeamSection(
   heading.textContent = orgName
   section.appendChild(heading)
 
-  // Group by shared tab. With zero or one tab, render one flat list (no
-  // sub-headers) -- same as before tabs existed.
   const orderedTabs = [...tabs].sort((a, b) => a.sortOrder - b.sortOrder)
-  const showSubHeaders = orderedTabs.length > 1
 
-  const groups: { label: string | null; prompts: OrgPrompt[] }[] = []
-  if (orderedTabs.length === 0) {
-    groups.push({ label: null, prompts })
-  } else {
-    for (const tab of orderedTabs) {
-      const inTab = prompts
-        .filter((p) => p.tabId === tab.id)
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-      if (inTab.length > 0) {
-        groups.push({ label: showSubHeaders ? (tab.emoji ? `${tab.emoji} ${tab.name}` : tab.name) : null, prompts: inTab })
-      }
-    }
-    const orphaned = prompts.filter((p) => !p.tabId || !orderedTabs.some((t) => t.id === p.tabId))
-    if (orphaned.length > 0) groups.push({ label: showSubHeaders ? 'Other' : null, prompts: orphaned })
-  }
-
-  for (const group of groups) {
-    if (group.label) {
-      const sub = document.createElement('p')
-      sub.className = 'team-subheading'
-      sub.textContent = group.label
-      section.appendChild(sub)
-    }
+  // One tab or none: nothing to switch between, so no chip strip -- just
+  // the flat prompt list, same as before shared tabs existed.
+  if (orderedTabs.length <= 1) {
     const list = document.createElement('ul')
     list.className = 'team-list'
-    group.prompts.forEach((prompt) => list.appendChild(renderPromptRow(prompt, onRun)))
+    prompts.forEach((prompt) => list.appendChild(renderPromptRow(prompt, onRun)))
     section.appendChild(list)
+    return section
   }
+
+  // Falls back to the first tab if the remembered selection was deleted
+  // (or nothing has been picked yet this session).
+  const effectiveActiveId = orderedTabs.some((t) => t.id === activeTabId)
+    ? activeTabId
+    : orderedTabs[0].id
+
+  // Same .tab-chip pill the personal tab strip uses (TabStrip.ts) --
+  // clickable buttons, not text labels, to switch which shared tab's
+  // prompts are shown below.
+  const chipList = document.createElement('div')
+  chipList.className = 'tab-strip-list'
+  chipList.setAttribute('role', 'tablist')
+  chipList.setAttribute('aria-label', `${orgName} tabs`)
+  orderedTabs.forEach((tab) => {
+    const isActive = tab.id === effectiveActiveId
+    const chip = document.createElement('button')
+    chip.type = 'button'
+    chip.className = 'tab-chip'
+    chip.setAttribute('role', 'tab')
+    chip.setAttribute('aria-selected', String(isActive))
+    if (isActive) chip.classList.add('is-active')
+    chip.textContent = tab.emoji ? `${tab.emoji} ${tab.name}` : tab.name
+    chip.addEventListener('click', () => onSelectTab(tab.id))
+    chipList.appendChild(chip)
+  })
+  section.appendChild(chipList)
+
+  const list = document.createElement('ul')
+  list.className = 'team-list'
+  prompts
+    .filter((p) => p.tabId === effectiveActiveId)
+    .forEach((prompt) => list.appendChild(renderPromptRow(prompt, onRun)))
+  section.appendChild(list)
 
   return section
 }
