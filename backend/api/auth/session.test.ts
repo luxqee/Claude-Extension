@@ -105,6 +105,37 @@ describe('POST /api/auth/session body handling', () => {
     // clerkCodeToIdToken returns null and the handler answers 401 -- the
     // point is it took the code branch instead of throwing.
     expect(res.statusCode).toBe(401)
-    expect((res.body as { error?: string }).error).toBe('code exchange failed')
+    const body = res.body as { error?: string; detail?: string }
+    expect(body.error).toBe('code exchange failed')
+    expect(body.detail).toMatch(/not configured/)
+  })
+
+  it('surfaces Clerk\'s own OAuth error as `detail` instead of a bare status', async () => {
+    process.env.CLERK_ISSUER = 'https://test.clerk.accounts.dev'
+    process.env.CLERK_OAUTH_CLIENT_ID = 'test-client-id'
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: 'invalid_grant', error_description: 'redirect_uri does not match' }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const handler = await loadHandler()
+    const req = {
+      method: 'POST',
+      headers: {},
+      body: { code: 'abc', redirectUri: 'https://x.chromiumapp.org/', codeVerifier: 'v' },
+    } as unknown as VercelRequest
+    const res = makeRes()
+
+    await handler(req, res)
+
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(res.statusCode).toBe(401)
+    expect((res.body as { detail?: string }).detail).toBe('redirect_uri does not match')
+
+    vi.unstubAllGlobals()
+    delete process.env.CLERK_ISSUER
+    delete process.env.CLERK_OAUTH_CLIENT_ID
   })
 })

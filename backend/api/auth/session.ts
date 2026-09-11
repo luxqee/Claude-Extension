@@ -25,12 +25,16 @@ const CLERK_ISSUER = (process.env.CLERK_ISSUER ?? '').replace(/\/+$/, '')
 const CLERK_OAUTH_CLIENT_ID = process.env.CLERK_OAUTH_CLIENT_ID ?? ''
 const CLERK_OAUTH_CLIENT_SECRET = process.env.CLERK_OAUTH_CLIENT_SECRET ?? ''
 
+type ClerkExchangeResult = { ok: true; idToken: string } | { ok: false; reason: string }
+
 async function clerkCodeToIdToken(
   code: string,
   redirectUri: string,
   codeVerifier: string,
-): Promise<string | null> {
-  if (!CLERK_ISSUER || !CLERK_OAUTH_CLIENT_ID) return null
+): Promise<ClerkExchangeResult> {
+  if (!CLERK_ISSUER || !CLERK_OAUTH_CLIENT_ID) {
+    return { ok: false, reason: 'CLERK_ISSUER or CLERK_OAUTH_CLIENT_ID not configured on the server' }
+  }
   const params: Record<string, string> = {
     grant_type: 'authorization_code',
     code,
@@ -45,15 +49,34 @@ async function clerkCodeToIdToken(
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams(params).toString(),
     })
-    if (!response.ok) {
-      console.error('[auth/session] Clerk token endpoint returned', response.status)
-      return null
+    // Clerk's token endpoint returns a JSON body on both success and error
+    // (e.g. {error:"invalid_grant", error_description:"..."}); read it
+    // either way so a misconfigured redirect_uri / client_id / secret
+    // shows up as a real reason instead of a bare status code.
+    let parsed: { id_token?: unknown; error?: unknown; error_description?: unknown } = {}
+    try {
+      parsed = (await response.json()) as typeof parsed
+    } catch {
+      /* non-JSON body -- fall through to the generic status-based reason */
     }
-    const body = (await response.json()) as { id_token?: unknown }
-    return typeof body.id_token === 'string' ? body.id_token : null
+    if (!response.ok) {
+      const reason =
+        typeof parsed.error_description === 'string'
+          ? parsed.error_description
+          : typeof parsed.error === 'string'
+            ? parsed.error
+            : `HTTP ${response.status}`
+      console.error('[auth/session] Clerk token endpoint rejected the exchange:', reason)
+      return { ok: false, reason }
+    }
+    if (typeof parsed.id_token !== 'string') {
+      console.error('[auth/session] Clerk token endpoint returned no id_token', parsed)
+      return { ok: false, reason: 'Clerk did not return an id_token (check requested scopes include openid)' }
+    }
+    return { ok: true, idToken: parsed.id_token }
   } catch (error) {
-    console.error('[auth/session] Clerk code exchange failed', error)
-    return null
+    console.error('[auth/session] Clerk code exchange request failed', error)
+    return { ok: false, reason: 'network error reaching Clerk' }
   }
 }
 
@@ -98,14 +121,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       res.status(400).json({ error: 'redirectUri and codeVerifier are required with code' })
       return
     }
-    const idToken = await clerkCodeToIdToken(body.code, body.redirectUri, body.codeVerifier)
-    if (!idToken) {
-      res.status(401).json({ error: 'code exchange failed' })
+    const exchanged = await clerkCodeToIdToken(body.code, body.redirectUri, body.codeVerifier)
+    if (!exchanged.ok) {
+      // `detail` is Clerk's own OAuth error, not a secret -- safe to return
+      // to the caller who just made this exact request, and is the
+      // difference between "figure it out from Vercel logs" and "read the
+      // error in the extension's own console".
+      res.status(401).json({ error: 'code exchange failed', detail: exchanged.reason })
       return
     }
-    const email = await verifyClerkToken(idToken)
+    const email = await verifyClerkToken(exchanged.idToken)
     if (!email) {
-      res.status(401).json({ error: 'invalid token' })
+      res.status(401).json({ error: 'invalid token', detail: 'Clerk id_token failed local verification (issuer/signature/expiry)' })
       return
     }
     issueSession(res, email)

@@ -73,7 +73,15 @@ async function exchangeCodeForSession(
       body: JSON.stringify({ code, redirectUri, codeVerifier }),
     })
     if (!response.ok) {
-      console.error('[Claude Tools] Clerk code exchange returned', response.status)
+      // The backend echoes back Clerk's own OAuth error as `detail` --
+      // check this console message for the actual reason (redirect_uri
+      // mismatch, wrong client secret, etc), not just the HTTP status.
+      const errorBody = await response.json().catch(() => null)
+      console.error(
+        '[Claude Tools] Clerk code exchange returned',
+        response.status,
+        (errorBody as { detail?: string } | null)?.detail ?? errorBody,
+      )
       return null
     }
     const body = (await response.json()) as { sessionToken?: unknown; email?: unknown; expiresAt?: unknown }
