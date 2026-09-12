@@ -20,6 +20,25 @@ jobs:
       - run: pnpm test
       - run: pnpm run build
 
+  e2e:
+    name: E2E (real extension, real Chromium)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck:e2e
+      - run: pnpm run build
+      - run: pnpm exec playwright install --with-deps chromium
+      # Chrome extensions need a headed browser (no supported headless
+      # mode for MV3 extensions); Xvfb gives it a display to run against
+      # on a GUI-less runner.
+      - run: sudo apt-get update && sudo apt-get install -y xvfb
+      - run: xvfb-run --auto-servernum -- pnpm exec playwright test
+
   backend:
     name: Backend (typecheck, test)
     runs-on: ubuntu-latest

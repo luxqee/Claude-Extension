@@ -4,3 +4,6 @@ dist/
 *.local
 docs/stage2-considerations.md
 .superpowers/
+test-results/
+playwright-report/
+playwright/.cache/

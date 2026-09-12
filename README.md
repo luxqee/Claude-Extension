@@ -248,15 +248,38 @@ the pnpm wrapper is broken; it runs the same `tsc` + `vite build`.
 
 `tests/` and `backend/lib/*.test.ts` cover the pure logic — storage,
 service, backup, token verification, org-state resolution, tab/reorder
-helpers. The sidebar UI and content script are verified manually in a
-real browser; that boundary is deliberate. Use
-[`docs/qa-checklist.md`](docs/qa-checklist.md) for that manual pass
-before handing a build to testers.
+helpers.
+
+`e2e/` drives the **real unpacked extension in a real Chromium** with
+Playwright (not a mocked DOM) — the pinned extension ID, button CRUD,
+skill badges, keyboard reorder, tab creation and the tab-picker dropdown,
+export/import (including a corrupt-file case), and storage surviving a
+reload. Run it:
+
+```bash
+pnpm run build        # e2e loads dist/, not source
+pnpm run e2e:install   # one-time: downloads the Chromium build Playwright drives
+pnpm run e2e
+```
+
+It opens real (visible) Chromium windows while it runs — Chrome extensions
+don't support a headless mode, so this can't run invisibly the way
+`vitest` does.
+
+**Not covered by `e2e/`**, still manual, via
+[`docs/qa-checklist.md`](docs/qa-checklist.md): anything needing Clerk
+sign-in or a live backend (organisations, roles, analytics), and anything
+needing an actual claude.ai tab (prompt insertion, the usage widget).
+Automating those would mean either real test credentials against a live
+Clerk instance or standing up a mock OAuth/claude.ai server — a
+deliberately unmade trade, not an oversight.
 
 **CI** (`.github/workflows/ci.yml`) runs on every push and PR to `main`:
 typecheck + the full test suite + `vite build` for the extension,
-typecheck + tests for `backend/`. It catches a broken commit before it
-reaches `main` — it does not replace the manual checklist above.
+typecheck + tests for `backend/`, and the `e2e/` suite in a headed
+Chromium under Xvfb. It catches a broken commit before it reaches
+`main` — it does not replace the manual checklist for the parts above
+that no automated test touches.
 
 ## Known limitations
 
@@ -272,8 +295,10 @@ reaches `main` — it does not replace the manual checklist above.
   falls back to a system font for those glyphs instead of drawing a
   broken placeholder shape. Swap in AIRE's licensed webfont files before
   any public/commercial release.
-- **Sidebar UI and drag-and-drop still rely on the manual checklist**,
-  not an automated browser test — CI (below) runs the pure-logic suite
-  and typecheck on every push, but nothing yet drives a real Chrome
-  extension end-to-end. A change can pass CI and still be visibly broken
-  in the panel; run `docs/qa-checklist.md` after UI changes.
+- **E2E coverage stops at sign-in.** `e2e/` (Playwright, see Testing)
+  covers personal buttons, tabs, and backup end-to-end in a real
+  browser. It cannot cover organisations, roles, analytics, or actual
+  claude.ai insertion without either real Clerk test credentials or a
+  mocked OAuth/claude.ai server — neither exists yet, so those still
+  depend on `docs/qa-checklist.md` and a human. A change can pass CI and
+  still be visibly broken in a part `e2e/` doesn't reach.

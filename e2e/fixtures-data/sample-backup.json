@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "tabs": [{ "name": "General", "emoji": null }],
+  "tools": [
+    { "tab": "General", "name": "Imported One", "prompt": "First imported prompt", "type": "prompt" },
+    { "tab": "General", "name": "Imported Two", "prompt": "/imported-skill", "type": "skill" }
+  ]
+}
