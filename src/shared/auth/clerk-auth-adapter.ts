@@ -38,7 +38,12 @@ export async function generatePkcePair(): Promise<PkcePair> {
   return { verifier, challenge: base64url(digest) }
 }
 
-export function buildClerkAuthUrl(redirectUri: string, challenge: string, state: string): string {
+export function buildClerkAuthUrl(
+  redirectUri: string,
+  challenge: string,
+  state: string,
+  prompt?: 'login',
+): string {
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: CLERK_OAUTH_CLIENT_ID,
@@ -48,6 +53,13 @@ export function buildClerkAuthUrl(redirectUri: string, challenge: string, state:
     code_challenge_method: 'S256',
     state,
   })
+  // Standard OIDC `prompt=login`: forces Clerk to re-authenticate instead
+  // of silently reusing its own still-live browser session. Without this,
+  // Sign out only clears our local session -- Clerk's own session cookie
+  // (and Google's behind it) persists, so the next "Sign in" click skips
+  // straight past account choice to the Allow/Deny consent screen for
+  // whoever was signed in before, with no way to pick a different account.
+  if (prompt) params.set('prompt', prompt)
   return `https://${CLERK_DOMAIN}/oauth/authorize?${params.toString()}`
 }
 
@@ -106,7 +118,10 @@ export class ClerkAuthAdapter implements AuthAdapter {
     const redirectUri = chrome.identity.getRedirectURL()
     const { verifier, challenge } = await generatePkcePair()
     const state = crypto.randomUUID()
-    const authUrl = buildClerkAuthUrl(redirectUri, challenge, state)
+    // Only force re-auth on the user-initiated flow. The silent refresh
+    // (interactive: false, used by getValidToken) must keep reusing the
+    // live session -- that's the whole point of it.
+    const authUrl = buildClerkAuthUrl(redirectUri, challenge, state, interactive ? 'login' : undefined)
 
     let redirectUrl: string | undefined
     try {
