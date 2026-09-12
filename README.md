@@ -260,8 +260,12 @@ helpers.
 `e2e/` drives the **real unpacked extension in a real Chromium** with
 Playwright (not a mocked DOM) — the pinned extension ID, button CRUD,
 skill badges, keyboard reorder, tab creation and the tab-picker dropdown,
-export/import (including a corrupt-file case), and storage surviving a
-reload. Run it:
+export/import (including a corrupt-file case), storage surviving a
+reload, and — via `e2e/mock-backend.ts` stubbing
+`chrome.identity.launchWebAuthFlow` and the backend's `fetch` responses,
+never a real Clerk account or the live Vercel backend — the director,
+member, and pending organisation views (shared prompts, roster,
+analytics). Run it:
 
 ```bash
 pnpm run build        # e2e loads dist/, not source
@@ -274,12 +278,12 @@ don't support a headless mode, so this can't run invisibly the way
 `vitest` does.
 
 **Not covered by `e2e/`**, still manual, via
-[`docs/qa-checklist.md`](docs/qa-checklist.md): anything needing Clerk
-sign-in or a live backend (organisations, roles, analytics), and anything
-needing an actual claude.ai tab (prompt insertion, the usage widget).
-Automating those would mean either real test credentials against a live
-Clerk instance or standing up a mock OAuth/claude.ai server — a
-deliberately unmade trade, not an oversight.
+[`docs/qa-checklist.md`](docs/qa-checklist.md): whether Clerk and the
+real backend actually return what the mocks assume (still needs a real
+sign-in against the live deployment), and anything needing an actual
+claude.ai tab (prompt insertion, the usage widget) — mocking Anthropic's
+DOM would test our guess at their page, not their actual page, which is
+worse than an honest gap.
 
 **CI** (`.github/workflows/ci.yml`) runs on every push and PR to `main`:
 typecheck + the full test suite + `vite build` for the extension,
@@ -300,10 +304,15 @@ that no automated test touches.
   falls back to a system font for those glyphs instead of drawing a
   broken placeholder shape. Swap in AIRE's licensed webfont files before
   any public/commercial release.
-- **E2E coverage stops at sign-in.** `e2e/` (Playwright, see Testing)
-  covers personal buttons, tabs, and backup end-to-end in a real
-  browser. It cannot cover organisations, roles, analytics, or actual
-  claude.ai insertion without either real Clerk test credentials or a
-  mocked OAuth/claude.ai server — neither exists yet, so those still
-  depend on `docs/qa-checklist.md` and a human. A change can pass CI and
-  still be visibly broken in a part `e2e/` doesn't reach.
+- **E2E doesn't reach claude.ai itself.** `e2e/` covers personal buttons,
+  tabs, backup, and — by stubbing `chrome.identity.launchWebAuthFlow` and
+  the backend's `fetch` responses (`e2e/mock-backend.ts`), never a real
+  Clerk account or the live Vercel backend — director/member/pending
+  organisation states: shared prompts, roster, analytics all render
+  correctly from a given backend response. What that buys: real UI-logic
+  bugs (a role not rendering the right view, org data not showing) get
+  caught without needing test credentials. What it doesn't buy: proof
+  that Clerk or the real backend actually return what the mocks assume,
+  or that prompt insertion still works against claude.ai's real DOM —
+  those still depend on `docs/qa-checklist.md` and a human against the
+  live deployment.

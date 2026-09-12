@@ -1,7 +1,9 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": ["node"]
+    // "chrome" is here for addInitScript callbacks (mock-backend.ts),
+    // which run in the browser page, not the Node test runner.
+    "types": ["node", "chrome"]
   },
   "include": ["e2e", "playwright.config.ts"]
 }
