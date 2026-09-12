@@ -90,7 +90,14 @@ the same ID and the same single OAuth redirect URI.
    | `SESSION_JWT_SECRET` | yes | `openssl rand -hex 32` — signs 14-day session tokens |
    | `CLERK_ISSUER` | yes | e.g. `https://your-instance.clerk.accounts.dev` (same as `CLERK_DOMAIN` with `https://`) |
    | `CLERK_OAUTH_CLIENT_ID` | yes | from Clerk → OAuth Applications |
-   | `CLERK_OAUTH_CLIENT_SECRET` | only if the Clerk OAuth app is confidential | from the same place |
+   | `CLERK_OAUTH_CLIENT_SECRET` | leave unset | only set this if the Clerk OAuth app is **Confidential**. It should be **Public** (see step 2 below) — leave this var out entirely. |
+
+   > **If sign-in fails with "Client authentication failed... no client
+   > authentication included"**: the Clerk OAuth Application is set to
+   > Confidential. Either set `CLERK_OAUTH_CLIENT_SECRET` above to its
+   > secret, or (recommended) switch the app to **Public** in Clerk and
+   > delete this env var if you'd set it. Redeploy after either change —
+   > env var edits don't take effect until the next deploy.
 
 4. Put the deployed URL in **`src/shared/api-base.ts`** (`API_BASE_URL`)
    and in `host_permissions` in `manifest.config.ts`. Commit. Testers
@@ -108,7 +115,11 @@ enable in the dashboard.
    https://fhaeedmmhjjkhnopifppigddjbbmdegh.chromiumapp.org/
    ```
    This is the pinned extension ID — it never changes between machines,
-   so the URI is added **once, ever**. Public client (PKCE).
+   so the URI is added **once, ever**. **Set the application type to
+   Public (PKCE), not Confidential** — a browser extension can't keep a
+   secret, and a Confidential app fails sign-in with "Client
+   authentication failed" unless you also wire up
+   `CLERK_OAUTH_CLIENT_SECRET`.
 2. Copy the **Client ID** into `src/shared/auth/providers.ts`
    (`CLERK_OAUTH_CLIENT_ID`); set `CLERK_DOMAIN` there to your instance
    host. Commit.
@@ -145,6 +156,16 @@ in it).
   buttons; Import merges buttons from a JSON file into your list. Old
   exports without a `type` import as Prompt.
 
+### Demo data
+
+`examples/showcase.json` — 20 sample buttons across 5 tabs, for a
+personal-side demo. Settings → Import tools → pick the file.
+
+`examples/org-seed.sql` — populates Manage Organisation (shared tabs and
+prompts, a sample roster, usage snapshots, prompt-run counters) for an
+org you've already created. See the comment at the top of that file for
+the one value you need to fill in and run in the Neon SQL Editor.
+
 ---
 
 ## Organisations
@@ -166,6 +187,9 @@ shared prompt list on top:
   approval), promote/demote admins, create/edit/delete
   shared prompts and tabs, and see per-member usage and prompt-run
   analytics. An organisation can never drop to zero admins.
+- **Shared tabs:** members see the org's shared prompts grouped under
+  the same clickable tab-chip buttons as their personal tabs (when the
+  org has more than one shared tab) — click a tab to see its prompts.
 - **Usage reporting:** while signed in, an approved member's
   session/weekly/spend percentages (the same numbers the personal usage
   widget shows) are reported periodically for admins to see. Stops on
@@ -225,4 +249,27 @@ the pnpm wrapper is broken; it runs the same `tsc` + `vite build`.
 `tests/` and `backend/lib/*.test.ts` cover the pure logic — storage,
 service, backup, token verification, org-state resolution, tab/reorder
 helpers. The sidebar UI and content script are verified manually in a
-real browser; that boundary is deliberate.
+real browser; that boundary is deliberate. Use
+[`docs/qa-checklist.md`](docs/qa-checklist.md) for that manual pass
+before handing a build to testers.
+
+## Known limitations
+
+- **No automated UI/browser tests.** The sidebar, drag-and-drop, org
+  screens, and claude.ai insertion are only checked by the manual
+  checklist above — a change can pass every automated test and still be
+  visibly broken. Run the checklist after UI changes.
+- **Depends on one claude.ai selector** (`[data-testid="chat-input"]`).
+  If Anthropic renames it, insertion and the usage widget break at the
+  same time; you'd see a clean "couldn't find Claude's chat box" error,
+  not a crash, but it needs a code fix regardless.
+- **No rate limiting beyond the backend's own per-caller limits** — fine
+  for a handful of trusted testers, not hardened for a public release.
+- **Demo Alfabet font.** The bundled woff2 files are from a Fontspring
+  DEMO license with most punctuation and a few digits stripped from
+  their character map (see the comment in `style.css`) so the browser
+  falls back to a system font for those glyphs instead of drawing a
+  broken placeholder shape. Swap in AIRE's licensed webfont files before
+  any public/commercial release.
+- **No CI.** Tests and typecheck are run locally/on demand, not on push
+  or PR — nothing stops a broken commit from landing on `main`.

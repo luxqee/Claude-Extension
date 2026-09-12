@@ -23,8 +23,12 @@ Set these in the Vercel project's Settings -> Environment Variables:
   `https://` prefix. Clerk id_tokens are verified against
   `${CLERK_ISSUER}/.well-known/jwks.json`.
 - `CLERK_OAUTH_CLIENT_ID` -- from the Clerk OAuth application (below).
-- `CLERK_OAUTH_CLIENT_SECRET` -- only if that application is confidential
-  rather than a public/PKCE client.
+- `CLERK_OAUTH_CLIENT_SECRET` -- leave unset. Only needed if the Clerk
+  OAuth application is Confidential rather than Public/PKCE, and it
+  should be Public (see below). Sending a secret to a Public application
+  -- or omitting it for a Confidential one -- both fail sign-in with
+  `invalid_client` / "Client authentication failed"; if you see that
+  error, this is the first thing to check.
 
 ### Clerk sign-in setup
 
