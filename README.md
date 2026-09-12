@@ -312,12 +312,17 @@ that no automated test touches.
   falls back to a system font for those glyphs instead of drawing a
   broken placeholder shape. Swap in AIRE's licensed webfont files before
   any public/commercial release.
-- **No automated test runs against the live claude.ai, Clerk, or Vercel
-  backend.** `e2e/` (see Testing) drives the real extension code —
-  including the exact compiled content-script bundle for insertion and
-  send-detection — against local mocks/fixtures instead, so it can't
-  catch the one class of break those can't simulate: Anthropic, Clerk,
-  or the live backend changing what they actually return. That still
-  needs a human running `docs/qa-checklist.md` against the real
-  deployment periodically, especially after any of those three change
-  something on their end.
+- **Automated coverage stops at the boundary of third-party services**
+  (claude.ai, Clerk, the live backend), by design. `e2e/` (see Testing)
+  runs the real extension code — including the exact compiled
+  content-script bundle for insertion and send-detection — against local
+  mocks and fixtures, so everything this codebase controls is covered by
+  a real test, in a real browser. Running live tests with real
+  credentials against Anthropic's and Clerk's production services on
+  every commit isn't something any CI setup does safely: it means
+  storing live credentials in CI, scripting a third party's site on
+  every push, and mutating real backend data each run. The standard
+  practice for that boundary — used here too, via
+  [`docs/qa-checklist.md`](docs/qa-checklist.md) — is a manual pass
+  against the live deployment, the same way any team verifies the parts
+  that live outside their own infrastructure.
