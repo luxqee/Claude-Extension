@@ -253,12 +253,13 @@ real browser; that boundary is deliberate. Use
 [`docs/qa-checklist.md`](docs/qa-checklist.md) for that manual pass
 before handing a build to testers.
 
+**CI** (`.github/workflows/ci.yml`) runs on every push and PR to `main`:
+typecheck + the full test suite + `vite build` for the extension,
+typecheck + tests for `backend/`. It catches a broken commit before it
+reaches `main` — it does not replace the manual checklist above.
+
 ## Known limitations
 
-- **No automated UI/browser tests.** The sidebar, drag-and-drop, org
-  screens, and claude.ai insertion are only checked by the manual
-  checklist above — a change can pass every automated test and still be
-  visibly broken. Run the checklist after UI changes.
 - **Depends on one claude.ai selector** (`[data-testid="chat-input"]`).
   If Anthropic renames it, insertion and the usage widget break at the
   same time; you'd see a clean "couldn't find Claude's chat box" error,
@@ -271,5 +272,8 @@ before handing a build to testers.
   falls back to a system font for those glyphs instead of drawing a
   broken placeholder shape. Swap in AIRE's licensed webfont files before
   any public/commercial release.
-- **No CI.** Tests and typecheck are run locally/on demand, not on push
-  or PR — nothing stops a broken commit from landing on `main`.
+- **Sidebar UI and drag-and-drop still rely on the manual checklist**,
+  not an automated browser test — CI (below) runs the pure-logic suite
+  and typecheck on every push, but nothing yet drives a real Chrome
+  extension end-to-end. A change can pass CI and still be visibly broken
+  in the panel; run `docs/qa-checklist.md` after UI changes.
