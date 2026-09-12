@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { neon } from '@neondatabase/serverless'
 import { resolveEmail } from '../lib/resolve-email.js'
 import { resolveDirectorContext } from '../lib/require-director.js'
+import { withRateLimit } from '../lib/with-rate-limit.js'
 
 const sql = neon(process.env.DATABASE_URL ?? '')
 
@@ -13,7 +14,7 @@ const sql = neon(process.env.DATABASE_URL ?? '')
 //   dailyRuns:  [ { day, runCount } ]                // last 30 days, org-wide total
 // }
 
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'method not allowed' })
     return
@@ -76,3 +77,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     res.status(500).json({ error: 'internal error' })
   }
 }
+
+export default withRateLimit(sql, 'org-analytics', 30, 60)(handler)

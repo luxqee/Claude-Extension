@@ -5,6 +5,7 @@ import { type OrgRecord } from '../lib/resolve-org.js'
 import { resolveSessionState, type OrgMemberRecord } from '../lib/resolve-session.js'
 import { isLastActiveDirector } from '../lib/last-director-guard.js'
 import { resolveAnyMembership } from '../lib/resolve-membership.js'
+import { withRateLimit } from '../lib/with-rate-limit.js'
 
 const sql = neon(process.env.DATABASE_URL ?? '')
 
@@ -12,7 +13,7 @@ interface OrgRow extends OrgRecord {
   name: string
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (req.method !== 'POST' && req.method !== 'DELETE') {
     res.status(405).json({ error: 'method not allowed' })
     return
@@ -111,3 +112,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     res.status(500).json({ error: 'internal error' })
   }
 }
+
+export default withRateLimit(sql, 'org-session', 60, 60)(handler)

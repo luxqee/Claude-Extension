@@ -200,9 +200,16 @@ re-derives the caller's email from their verified identity token and
 re-checks their own membership row on every request. The client cannot
 assert its own email, org, role, or admin status. Cross-organisation
 isolation is enforced by Postgres row-level security
-(`FORCE ROW LEVEL SECURITY`), not just by `WHERE` clauses. Sign-in,
-onboarding, prompt-run and usage-report calls are rate-limited per
-caller (fixed window, in the `rate_limits` table — no extra service).
+(`FORCE ROW LEVEL SECURITY`), not just by `WHERE` clauses. **Every API
+route is rate-limited** (fixed window, in the `rate_limits` table — no
+extra service). Sign-in is limited per-IP before it does any token
+verification at all (a flood of invalid tokens can't run up Vercel
+invocations); onboarding, prompt-run and usage-report are limited
+per-authenticated-caller with a tighter, abuse-shape-specific window;
+every other route (org session, roster, shared tabs/prompts, analytics,
+usage) gets a generic per-IP ceiling via a shared `withRateLimit`
+wrapper (`backend/lib/with-rate-limit.ts`), also checked before the
+route's own logic runs.
 
 ---
 
@@ -287,8 +294,6 @@ that no automated test touches.
   If Anthropic renames it, insertion and the usage widget break at the
   same time; you'd see a clean "couldn't find Claude's chat box" error,
   not a crash, but it needs a code fix regardless.
-- **No rate limiting beyond the backend's own per-caller limits** — fine
-  for a handful of trusted testers, not hardened for a public release.
 - **Demo Alfabet font.** The bundled woff2 files are from a Fontspring
   DEMO license with most punctuation and a few digits stripped from
   their character map (see the comment in `style.css`) so the browser
