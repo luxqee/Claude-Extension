@@ -261,11 +261,16 @@ helpers.
 Playwright (not a mocked DOM) — the pinned extension ID, button CRUD,
 skill badges, keyboard reorder, tab creation and the tab-picker dropdown,
 export/import (including a corrupt-file case), storage surviving a
-reload, and — via `e2e/mock-backend.ts` stubbing
+reload; via `e2e/mock-backend.ts` stubbing
 `chrome.identity.launchWebAuthFlow` and the backend's `fetch` responses,
-never a real Clerk account or the live Vercel backend — the director,
-member, and pending organisation views (shared prompts, roster,
-analytics). Run it:
+never a real Clerk account or the live Vercel backend, the director/
+member/pending organisation views (shared prompts, roster, analytics);
+and, via `e2e/claude-insertion.spec.ts` loading the exact compiled
+`content-script.ts` bundle that ships in the extension onto a local
+fixture page (never claude.ai itself — see that file's comment for why),
+real `execCommand`-based prompt insertion, the missing-chat-input error
+path, and send-detection (the input holding text then clearing) all
+running for real, not simulated. Run it:
 
 ```bash
 pnpm run build        # e2e loads dist/, not source
@@ -278,12 +283,15 @@ don't support a headless mode, so this can't run invisibly the way
 `vitest` does.
 
 **Not covered by `e2e/`**, still manual, via
-[`docs/qa-checklist.md`](docs/qa-checklist.md): whether Clerk and the
-real backend actually return what the mocks assume (still needs a real
-sign-in against the live deployment), and anything needing an actual
-claude.ai tab (prompt insertion, the usage widget) — mocking Anthropic's
-DOM would test our guess at their page, not their actual page, which is
-worse than an honest gap.
+[`docs/qa-checklist.md`](docs/qa-checklist.md): whether Clerk, the real
+backend, and claude.ai's *actual* page structure still match what the
+mocks and the local fixture assume — none of that can be proven without
+running against the live deployment and the live site. The fixture in
+`claude-insertion.spec.ts` is our own approximation of claude.ai's chat
+input; if Anthropic changes that DOM, the fixture test keeps passing
+while the real extension breaks. What automated e2e now catches instead
+is regressions in our own insertion/send-detection code — historically
+the more common failure — not drift in a page we don't control.
 
 **CI** (`.github/workflows/ci.yml`) runs on every push and PR to `main`:
 typecheck + the full test suite + `vite build` for the extension,
@@ -304,15 +312,12 @@ that no automated test touches.
   falls back to a system font for those glyphs instead of drawing a
   broken placeholder shape. Swap in AIRE's licensed webfont files before
   any public/commercial release.
-- **E2E doesn't reach claude.ai itself.** `e2e/` covers personal buttons,
-  tabs, backup, and — by stubbing `chrome.identity.launchWebAuthFlow` and
-  the backend's `fetch` responses (`e2e/mock-backend.ts`), never a real
-  Clerk account or the live Vercel backend — director/member/pending
-  organisation states: shared prompts, roster, analytics all render
-  correctly from a given backend response. What that buys: real UI-logic
-  bugs (a role not rendering the right view, org data not showing) get
-  caught without needing test credentials. What it doesn't buy: proof
-  that Clerk or the real backend actually return what the mocks assume,
-  or that prompt insertion still works against claude.ai's real DOM —
-  those still depend on `docs/qa-checklist.md` and a human against the
-  live deployment.
+- **No automated test runs against the live claude.ai, Clerk, or Vercel
+  backend.** `e2e/` (see Testing) drives the real extension code —
+  including the exact compiled content-script bundle for insertion and
+  send-detection — against local mocks/fixtures instead, so it can't
+  catch the one class of break those can't simulate: Anthropic, Clerk,
+  or the live backend changing what they actually return. That still
+  needs a human running `docs/qa-checklist.md` against the real
+  deployment periodically, especially after any of those three change
+  something on their end.
